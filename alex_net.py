@@ -5,6 +5,9 @@ import os
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
+# Manipulate
+import numpy as np
+
 # Hyper-parameters
 NUM_EPOCHS = 90
 BATCH_SIZE = 128
@@ -19,10 +22,10 @@ NUM_CLASSES = 200
 # else layers initialized with constant 0
 
 # Data directory
-INPUT_ROOT_DIR = '/home/alexnet/input'
+INPUT_ROOT_DIR = './'
 TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
-VAL_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'valid')
-TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
+# VAL_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'valid')
+# TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
 OUTPUT_ROOT_DIR = '/home/alexnet/output'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
 CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
@@ -32,10 +35,49 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
 # @todo Load dataset
-builder = tfds.ImageFolder(INPUT_ROOT_DIR)
-train_ds = builder.as_dataset(split='train')
-tfds.show_examples(train_ds, builder.info)
+# builder = tfds.ImageFolder(INPUT_ROOT_DIR)
+# datasets = builder.as_dataset(split='train')
+# tfds.load(datasets, split='train[:80%]')
+# print(datasets)
+imagepaths, labels = list(), list()
+label = 0
+classes = sorted(os.walk(TRAIN_IMG_DIR).__next__()[1])
+for c in classes:
+    c_dir = os.path.join(TRAIN_IMG_DIR, c)
+    walk = os.walk(c_dir).__next__()
+    # Add each image to the training set
+    for sample in walk[2]:
+        # Only keeps jpeg images
+        # if sample.endswith('.jpg') or sample.endswith('.jpeg'):
+        imagepaths.append(os.path.join(c_dir, sample))
+        labels.append(label)
+    label += 1
 
+# Convert to Tensor
+imagepaths = tf.convert_to_tensor(imagepaths, dtype=tf.string)
+labels = tf.convert_to_tensor(labels, dtype=tf.int32)
+# Build Tf Queue, shuffle data
+image = tf.data.Dataset.from_tensor_slices(tensors=imagepaths).shuffle(1024, seed=602)
+label = tf.data.Dataset.from_tensor_slices(tensors=labels).shuffle(1024, seed=602)
+
+# Read images from disk
+images = list()
+for img in image:
+    img = tf.io.read_file(img)
+    img = tf.image.decode_jpeg(img, channels=3)
+    img = tf.image.resize(img, size=(256, 256))
+    img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900, 4], box_indices=)
+
+# Resize images
+# image = tf.image.resize(image, size=(256,256))
+# train_image, train_label = image[:80000], label[:80000]
+# valid_image, valid_label = image[80000:90000], label[80000:90000]
+# test_image, test_label = image[-10000:], label[-10000:]
+# image = tf.image.crop_and_resize(image, crop_size=(227,227), boxes=[900, 4])
+
+# train_dataset, valid_dataset, test_dataset =
+# print(count=[x for x, y in enumerate(datasets)][-1]+1)
+# print(datasets.take(1)['image'])
 
 #----------------------------------------------------------------------------------------------------------------------
 # Define conv, fc, max_pool, lrn, dropout method

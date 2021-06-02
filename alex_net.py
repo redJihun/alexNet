@@ -32,88 +32,180 @@ CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
+#----------------------------------------------------------------------------------------------------------------------
+# Define conv, fc, max_pool, lrn, dropout method
+def conv(input, weight, bias, strides, name, padding='VALID'):
+    """
+    Apply the convolution to input with filters(filter == weight).
+    Then add bias and apply the activation function(In AlexNet they have only ReLU function).
+    :param input:
+    :param weight:
+    :param bias:
+    :param strides:
+    :param name:
+    :param padding:
+    :return:
+    """
+    # Do convolution
+    convolve = tf.nn.conv2d(input, weight, strides=[strides], padding=padding)
+
+    # Add bias
+    bias = tf.reshape(tf.nn.bias_add(convolve, bias), tf.shape(convolve))
+
+    # Apply activation
+    relu = tf.nn.relu(bias, name=name)
+
+    return relu
+
+
+def fc(input, weight, bias, name, activation='relu'):
+    """
+    Matrix input multiply with weights and add bias.
+    Then apply the activation function.
+    :param input:
+    :param weight:
+    :param bias: The bias of this layer. If output is first Fully-connected layer, bias is parameters['b6']
+    :param name: The name of output.(e.g., 'fc1', 'fc2')
+    :param activation: Name of activation function.(e.g., 'relu', 'softmax' etc.)
+    :return: tf.tensor(applied activation)
+    """
+    foo = tf.nn.bias_add(tf.matmul(input, weight), bias)
+
+    if activation == 'relu':
+        act = tf.nn.relu(foo, name=name)
+    else:
+        act = tf.nn.softmax(foo, name=name)
+
+    return act
+
+
+def max_pool(input, name, ksize=3, strides=[1, 2, 2, 1], padding='VALID'):
+    """
+    Apply the max_pooling. All max_pooling layer have same ksize and strides.
+    So just input input, name and sometimes padding('VALID' or 'SAME').
+    :param input:
+    :param name:
+    :param ksize:
+    :param strides:
+    :param padding:
+    :return:
+    """
+    return tf.nn.max_pool(input, ksize=ksize, strides=strides, padding=padding, name=name)
+
+
+def lrn(input, name, radius=5, alpha=10e-4, beta=0.75, bias=2.0):
+    """
+    All local_response_normalization layers have same hyper-parameters.
+    So just input input and name.
+    :param input:
+    :param name:
+    :param radius:
+    :param alpha:
+    :param beta:
+    :param bias:
+    :return:
+    """
+    return tf.nn.local_response_normalization(input=input, depth_radius=radius,
+                                              alpha=alpha, beta=beta, bias=bias, name=name)
+
+
+def dropout(input, keep_prob=0.5):
+    """
+    All dropout layers have same rate. So give them default value.
+    :param input:
+    :param keep_prob:
+    :return:
+    """
+    return tf.nn.dropout(input, rate=keep_prob)
+
+#----------------------------------------------------------------------------------------------------------------------
+
 
 # Make CNN model
-# bias init 1/3/8 = 0, 2/4/5/6/7 = 1
-def alexnet(X, parameters, p_keep):
-    input_layer = keras.Input(shape=(227, 227, 3), batch_size=128)
-    # l1conv = layers.Conv2D(filters=96, strides=(4, 4), kernel_size=(11, 11),
-    #                        activation='relu', bias_initializer='zeros')(input_layer)
-    l1a = tf.nn.relu(tf.nn.conv2d(input=X, filters=parameters['w1'], strides=4, padding='VALID'))
-    l1lrn = tf.nn.local_response_normalization(input=l1a, depth_radius=5, bias=2, alpha=10e-4, beta=0.75)
-    # l1max_pool = layers.MaxPool2D(pool_size=(3, 3), strides=(2, 2), padding='valid')(l1lrn)
-    l1max_pool = tf.nn.max_pool(input=l1lrn, ksize=3, strides=2, padding='VALID')
+def alexnet(X, parameters):
+    # Layer 1 : Convolution -> LRN -> Max pooling
+    l1_conv = conv(input=X, weight=parameters['w1'], bias=parameters['b1'], strides=[1, 4, 4, 1], name='l1_conv')
+    l1_norm = lrn(input=l1_conv, name='l1_norm')
+    l1_pool = max_pool(input=l1_norm, name='l1_pool')
 
-    # l2conv = layers.Conv2D(filters=256, strides=(1, 1), kernel_size=(5, 5), padding='same',
-    #                        activation='relu', bias_initializer='ones')(l1max_pool)
-    l2a = tf.nn.relu(tf.nn.conv2d(input=l1max_pool, filters=parameters['w2'], strides=1, padding='VALID'))
-    l2lrn = tf.nn.local_response_normalization(input=l2a, depth_radius=5, bias=2, alpha=10e-4, beta=0.75)
-    # l2max_pool = layers.MaxPool2D(pool_size=(3, 3), strides=(2, 2), padding='valid')(l2lrn)
-    l2max_pool = tf.nn.max_pool(input=l2lrn, ksize=3, strides=2, padding='VALID')
+    # Layer 2 : Convolution -> LRN -> Max pooling
+    l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=[1, 1, 1, 1], name='l2_conv')
+    l2_norm = lrn(input=l2_conv, name='l2_norm')
+    l2_pool = max_pool(input=l2_norm, name='l2_pool')
 
-    # l3conv = layers.Conv2D(filters=384, strides=(1, 1), kernel_size=(3, 3), padding='same',
-    #                        activation='relu', bias_initializer='zeros')(l2max_pool)
-    l3a = tf.nn.relu(tf.nn.conv2d(input=l2max_pool, filters=parameters['w3'], strides=1, padding='SAME'))
+    # Layer 3 : Convolution
+    l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=[1, 1, 1, 1], name='l3_conv')
 
-    # l4conv = layers.Conv2D(filters=384, strides=(1, 1), kernel_size=(3, 3), padding='same',
-    #                        activation='relu', bias_initializer='ones')(l3conv)
-    l4a = tf.nn.relu(tf.nn.conv2d(input=l3a, filters=parameters['w4'], strides=1, padding='SAME'))
+    # Layer 4 : Convolution
+    l4_conv = conv(input=l3_conv, weight=parameters['w4'], bias=parameters['b4'], strides=[1, 1, 1, 1], name='l4_conv', padding='SAME')
 
-    # l5conv = layers.Conv2D(filters=256, strides=(1, 1), kernel_size=(3, 3), padding='same',
-    #                        activation='relu', bias_initializer='ones')(l4conv)
-    l5a = tf.nn.relu(tf.nn.conv2d(input=l4a, filters=parameters['w5'], strides=1, padding='SAME'))
-    # l5max_pool = layers.MaxPool2D(pool_size=(3, 3), strides=(2, 2), padding='valid')(l5conv)
-    l5max_pool = tf.nn.max_pool(input=l5a, ksize=3, strides=2, padding='VALID')
+    # Layer 5 : Convolution -> Max pooling
+    l5_conv = conv(input=l4_conv, weight=parameters['w5'], bias=parameters['b5'], strides=[1, 1, 1, 1], name='l5_conv', padding='SAME')
+    l5_pool = max_pool(input=l5_conv, name='l5_pool')
 
-    # l6flatten = layers.Flatten()(l5max_pool)
-    flattened = tf.reshape(l5max_pool, [-1, 6*6*256])
-    # l6dropout = layers.Dropout(rate=0.5)(l6flatten)
-    l6dropout = tf.nn.dropout(flattened, rate=p_keep)
-    # l6fc = layers.Dense(4096, activation='relu', bias_initializer='ones')(l6dropout)
-    l6fc = tf.nn.relu(tf.matmul(l6dropout, parameters['w6']))
+    # Layer 6 : Flatten -> Fully connected -> Dropout
+    l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(parameters['w6'])[0]])
+    l6_fc = fc(input=l6_flattened, weight=parameters['w6'], bias=parameters['b6'], name='l6_fc')
+    l6_dropout = dropout(input=l6_fc)
 
+    # Layer 7 : Fully connected -> Dropout
+    l7_fc = fc(input=l6_dropout, weight=parameters['w7'], bias=parameters['b7'], name='l7_fc')
+    l7_dropout = dropout(input=l7_fc)
 
-    # l7dropout = layers.Dropout(rate=0.5)(l6fc)
-    l7dropout = tf.nn.dropout(l6fc, rate=p_keep)
-    # l7fc = layers.Dense(4096, activation='relu', bias_initializer='ones')(l7dropout)
-    l7fc = tf.nn.relu(tf.matmul(l7dropout, parameters['w7']))
+    # Layer 8 : Fully connected(with softmax)   # Output layer
+    l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc')
 
-    # l8output = layers.Dense(1000, activation='softmax', bias_initializer='zeros')(l7fc)
-    l8output = tf.nn.softmax(tf.matmul(l7fc, parameters['w8']))
-
-    return l8output
+    return l8_fc
 
 
 # @todo Load dataset
+
+
 # @todo image down sampling - 짧은 면 256픽셀 + 긴면 같은 비율로 줄임, 긴 면의 가운데 256픽셀 자름 -> 256x256 이미지
+
+
+# @todo image preprocessing - 각 픽셀에서 이미지의 픽셀 값 평균을 빼줌(픽셀 평균을 0으로 만듦)
+
+
+
 # @todo Data augmentation - crop, RGB(pca)
 
 # Initialize variables
+# weight init with Gaussian distribution(mean=0.0 & standard_deviation=0.01)
+# bias init 1/3/8 = 0, 2/4/5/6/7 = 1
 tf.random.set_seed(602)
 parameters = {
-    'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1'),
-    'b1': tf.Variable(tf.zeros(shape=[96], name='b1')),
-    'w2': tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2'),
-    'b2': tf.Variable(tf.zeros(shape=[256], name='b2')),
-    'w3': tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3'),
-    'b3': tf.Variable(tf.zeros(shape=[384], name='b3')),
-    'w4': tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4'),
-    'b4': tf.Variable(tf.zeros(shape=[384], name='b4')),
-    'w5': tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5'),
-    'b5': tf.Variable(tf.zeros(shape=[256], name='b5')),
-    'w6': tf.Variable(tf.random.normal(shape=[4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6'),
-    'b6': tf.Variable(tf.zeros(shape=[4096], name='b6')),
-    'w7': tf.Variable(tf.random.normal(shape=[4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7'),
-    'b7': tf.Variable(tf.zeros(shape=[4096], name='b7')),
-    'w8': tf.Variable(tf.random.normal(shape=[200], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8'),
-    'b8': tf.Variable(tf.zeros(shape=[200], name='b8')),
+    'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
+    'b1': tf.Variable(tf.zeros(shape=[96], name='b1'), trainable=True),
+
+    'w2': tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2', trainable=True),
+    'b2': tf.Variable(tf.ones(shape=[256], name='b2'), trainable=True),
+
+    'w3': tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3', trainable=True),
+    'b3': tf.Variable(tf.zeros(shape=[384], name='b3'), trainable=True),
+
+    'w4': tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4', trainable=True),
+    'b4': tf.Variable(tf.ones(shape=[384], name='b4'), trainable=True),
+
+    'w5': tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5', trainable=True),
+    'b5': tf.Variable(tf.ones(shape=[256], name='b5'), trainable=True),
+
+    'w6': tf.Variable(tf.random.normal(shape=[6*6*256, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6', trainable=True),
+    'b6': tf.Variable(tf.ones(shape=[4096], name='b6'), trainable=True),
+
+    'w7': tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True),
+    'b7': tf.Variable(tf.ones(shape=[4096], name='b7'), trainable=True),
+
+    'w8': tf.Variable(tf.random.normal(shape=[4096, 200], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
+    'b8': tf.Variable(tf.zeros(shape=[200], name='b8'), trainable=True),
 }
+
 
 # @todo Do training
 # Launch the session
 with tf.Session() as sess:
     tf.initialize_all_variables().run()
 
-    for i in range(NUM_EPOCHS):
+    # for epoch in range(NUM_EPOCHS):
 
 # @todo Do validation check & model save

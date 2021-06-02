@@ -3,18 +3,16 @@ import os
 
 # Deep-learning framework
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers, models, datasets
-from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array, load_img, array_to_img
+import tensorflow_datasets as tfds
 
-# Hyperparameters
+# Hyper-parameters
 NUM_EPOCHS = 90
 BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01            # == weight_init
 IMAGE_DIM = 227
-NUM_CLASSES = 1000
+NUM_CLASSES = 200
 
 # Initialized the weights in each layer from a zero-mean Gaussian distribution(standard deviation=0.01)
 # initialized bias with constant 1, 2/4/5 conv layers, fully-connected hidden layers
@@ -31,6 +29,13 @@ CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+
+
+# @todo Load dataset
+builder = tfds.ImageFolder(INPUT_ROOT_DIR)
+train_ds = builder.as_dataset(split='train')
+tfds.show_examples(train_ds, builder.info)
+
 
 #----------------------------------------------------------------------------------------------------------------------
 # Define conv, fc, max_pool, lrn, dropout method
@@ -158,14 +163,13 @@ def alexnet(X, parameters):
     return l8_fc
 
 
-# @todo Load dataset
+
 
 
 # @todo image down sampling - 짧은 면 256픽셀 + 긴면 같은 비율로 줄임, 긴 면의 가운데 256픽셀 자름 -> 256x256 이미지
 
 
 # @todo image preprocessing - 각 픽셀에서 이미지의 픽셀 값 평균을 빼줌(픽셀 평균을 0으로 만듦)
-
 
 
 # @todo Data augmentation - crop, RGB(pca)
@@ -196,15 +200,15 @@ parameters = {
     'w7': tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True),
     'b7': tf.Variable(tf.ones(shape=[4096], name='b7'), trainable=True),
 
-    'w8': tf.Variable(tf.random.normal(shape=[4096, 200], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
-    'b8': tf.Variable(tf.zeros(shape=[200], name='b8'), trainable=True),
+    'w8': tf.Variable(tf.random.normal(shape=[4096, NUM_CLASSES], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
+    'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES], name='b8'), trainable=True),
 }
 
 
 # @todo Do training
 # Launch the session
-with tf.Session() as sess:
-    tf.initialize_all_variables().run()
+# with tf.Session() as sess:
+#     tf.initialize_all_variables().run()
 
     # for epoch in range(NUM_EPOCHS):
 

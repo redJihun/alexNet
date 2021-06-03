@@ -131,3 +131,5 @@ dmypy.json
 # add
 train/
 .idea/
+input/
+output/

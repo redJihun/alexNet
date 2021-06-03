@@ -263,23 +263,28 @@ parameters = {
 
 # @todo Do training
 # Define loss function
-def loss(target_y, predicted_y):
+def cost(target_y, predicted_y):
     return tf.reduce_mean(tf.square(target_y - predicted_y))
 
 
 # Define training loop
 def train(model, input_x, label_y, parameters):
 
-    with tf.GradientTape() as t1:
+    with tf.GradientTape() as tape:
+        tape.watch([lambda x: parameters[x] for x in parameters.keys()])
         # Trainable variables are tracked by GradientTape
-        current_loss = loss(label_y, model(input_x, parameters))
-        with tf.GradientTape() as t2:
-            with tf.GradientTape() as t3:
-                with tf.GradientTape() as t4:
-                    with
+        current_loss = cost(label_y, model(input_x, parameters))
 
-        dw1, db1 = t1.gradient(current_loss, [parameters['w1'], parameters['b1']])
+    grad = tape.gradient(current_loss, [lambda x: parameters[x] for x in parameters.keys()])
+    return grad, current_loss
 
+for epoch in range(NUM_EPOCHS):
+    (dw1, db1, dw2, db2, dw3, db3, dw4, db4, dw5, db5, dw6, db6, dw7, db7, dw8, db8), loss = train(alexnet, train_X, train_Y, parameters)
+
+    for p in parameters.keys():
+        parameters[p] = parameters[p] - ('d'+p)*LR_INIT
+
+    print('STEP: {} Loss: {}'.format(epoch, loss))
 
 # Launch the session
 # with tf.Session() as sess:

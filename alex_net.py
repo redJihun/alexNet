@@ -7,6 +7,11 @@ import tensorflow_datasets as tfds
 
 # Manipulate
 import numpy as np
+import random
+
+RANDOM_SEED = 602
+random.seed(RANDOM_SEED)
+tf.random.set_seed(RANDOM_SEED)
 
 # Hyper-parameters
 NUM_EPOCHS = 90
@@ -15,18 +20,12 @@ MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01            # == weight_init
 IMAGE_DIM = 227
-NUM_CLASSES = 200
+NUM_CLASSES = 10
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
-
-# Initialized the weights in each layer from a zero-mean Gaussian distribution(standard deviation=0.01)
-# initialized bias with constant 1, 2/4/5 conv layers, fully-connected hidden layers
-# else layers initialized with constant 0
 
 # Data directory
 INPUT_ROOT_DIR = './input'
 TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
-# VAL_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'valid')
-# TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
 OUTPUT_ROOT_DIR = './output'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
 CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
@@ -36,60 +35,60 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
 # @todo Load dataset
-# builder = tfds.ImageFolder(INPUT_ROOT_DIR)
-# datasets = builder.as_dataset(split='train')
-# tfds.load(datasets, split='train[:80%]')
-# print(datasets)
+# After init variables, append imagefile's path and label(in number, origin is name of sub-directory).
+# Set the path of root dir, and use os.walk(root_dir) for append all images in sub-dir.
 imagepaths, labels = list(), list()
 label = 0
 classes = sorted(os.walk(TRAIN_IMG_DIR).__next__()[1])
 for c in classes:
     c_dir = os.path.join(TRAIN_IMG_DIR, c)
     walk = os.walk(c_dir).__next__()
-    # Add each image to the training set
+    # Add each image
     for sample in walk[2]:
-        # Only keeps jpeg images
-        # if sample.endswith('.jpg') or sample.endswith('.jpeg'):
         imagepaths.append(os.path.join(c_dir, sample))
         labels.append(label)
+    # next directory
     label += 1
 
-# Convert to Tensor
-imagepaths = tf.convert_to_tensor(imagepaths, dtype=tf.string)
-labels = tf.convert_to_tensor(labels, dtype=tf.int32)
-# Build Tf Queue, shuffle data
-image = tf.data.Dataset.from_tensor_slices(tensors=imagepaths).shuffle(1024, seed=602)
-label = tf.data.Dataset.from_tensor_slices(tensors=labels).shuffle(1024, seed=602)
 
 # Read images from disk
 # Resize & Crop
-image = tf.io.read_file(imagepaths)
-image = tf.image.decode_jpeg(image, channels=3)
-# images = list()
-# i=0
-# for img in image:
-#     img = tf.io.read_file(img)
-#     img = tf.image.decode_jpeg(img, channels=3)
-#     img = tf.image.resize(img, size=(256, 256))
-#     img = tf.reshape(img, shape=[-1, 256, 256, 3])
-#     images.append(img)
-#     print(i)
-#     i += 1
-# images = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(images, dtype=tf.float32))
-    # img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900., 4.], box_indices=[900, ])
+print('start resizing image')
+images = list()
+for img in imagepaths:
+    img = tf.io.read_file(img)
+    img = tf.image.decode_jpeg(img, channels=3)
+    img = tf.image.resize(img, size=(256, 256))
+    images.append(img)
+print('end resizing')
+# images = tf.data.Dataset.from_tensors(tf.convert_to_tensor(images, dtype=tf.float32))
+# img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900., 4.], box_indices=[900, ])
 # image = tf.image.crop_and_resize(image, crop_size=(227,227), boxes=[900, 4])
 
-# Split datasets
-# image = tf.image.resize(image, size=(256,256))
-# train_image, train_label = image[:80000], label[:80000]
-# valid_image, valid_label = image[80000:90000], label[80000:90000]
-# test_image, test_label = image[-10000:], label[-10000:]
+# Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
+random.shuffle(images)
+random.shuffle(labels)
 
-# train_dataset, valid_dataset, test_dataset =
-# print(count=[x for x, y in enumerate(datasets)][-1]+1)
-# print(datasets.take(1)['image'])
+# Split train/valid/test, total data size = 5,000
+train_X, train_Y = images[:4000], labels[:4000]
+valid_X, valid_Y = images[4000:4500], labels[4000:4500]
+test_X, test_Y = images[-500:], labels[-500:]
 
-#----------------------------------------------------------------------------------------------------------------------
+# Convert to Tensor
+train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
+valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_to_tensor(valid_Y, dtype=tf.int32)
+test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
+
+# Build Tf dataset
+train_X = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128)
+train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
+valid_X = tf.data.Dataset.from_tensor_slices(tensors=valid_X)
+valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
+test_X = tf.data.Dataset.from_tensor_slices(tensors=test_X)
+test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_Y)
+
+
+########################################################################################################################
 # Define conv, fc, max_pool, lrn, dropout method
 def conv(input, weight, bias, strides, name, padding='VALID'):
     """
@@ -175,7 +174,7 @@ def dropout(input, keep_prob=0.5):
     """
     return tf.nn.dropout(input, rate=keep_prob)
 
-#----------------------------------------------------------------------------------------------------------------------
+########################################################################################################################
 
 
 # Make CNN model
@@ -215,9 +214,6 @@ def alexnet(X, parameters):
     return l8_fc
 
 
-
-
-
 # @todo image down sampling - 짧은 면 256픽셀 + 긴면 같은 비율로 줄임, 긴 면의 가운데 256픽셀 자름 -> 256x256 이미지
 
 
@@ -226,10 +222,10 @@ def alexnet(X, parameters):
 
 # @todo Data augmentation - crop, RGB(pca)
 
+
 # Initialize variables
 # weight init with Gaussian distribution(mean=0.0 & standard_deviation=0.01)
 # bias init 1/3/8 = 0, 2/4/5/6/7 = 1
-tf.random.set_seed(602)
 parameters = {
     'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
     'b1': tf.Variable(tf.zeros(shape=[96], name='b1'), trainable=True),
@@ -256,15 +252,35 @@ parameters = {
     'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES], name='b8'), trainable=True),
 }
 
-X = tf.compat.v1.placeholder(dtype=tf.float32)
-Y = tf.compat.v1.placeholder(dtype=tf.float32)
 
-model = alexnet(X, parameters)
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model, Y))
-optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, momentum=MOMENTUM, weight_decay=LR_DECAY).minimize(cost)
-prediction = tf.argmax(model, 1)
+# X = tf.Variable(shape=tf.TensorShape(None))
+# Y = tf.Variable(shape=tf.TensorShape(None))
+
+# model = alexnet(X, parameters)
+# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model, Y))
+# optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, momentum=MOMENTUM, weight_decay=LR_DECAY).minimize(cost)
+# prediction = tf.argmax(model, 1)
 
 # @todo Do training
+# Define loss function
+def loss(target_y, predicted_y):
+    return tf.reduce_mean(tf.square(target_y - predicted_y))
+
+
+# Define training loop
+def train(model, input_x, label_y, parameters):
+
+    with tf.GradientTape() as t1:
+        # Trainable variables are tracked by GradientTape
+        current_loss = loss(label_y, model(input_x, parameters))
+        with tf.GradientTape() as t2:
+            with tf.GradientTape() as t3:
+                with tf.GradientTape() as t4:
+                    with
+
+        dw1, db1 = t1.gradient(current_loss, [parameters['w1'], parameters['b1']])
+
+
 # Launch the session
 # with tf.Session() as sess:
     # tf.initialize_all_variables().run()

@@ -16,6 +16,7 @@ LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01            # == weight_init
 IMAGE_DIM = 227
 NUM_CLASSES = 200
+IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Initialized the weights in each layer from a zero-mean Gaussian distribution(standard deviation=0.01)
 # initialized bias with constant 1, 2/4/5 conv layers, fully-connected hidden layers
@@ -62,11 +63,12 @@ label = tf.data.Dataset.from_tensor_slices(tensors=labels).shuffle(1024, seed=60
 
 # Read images from disk
 images = list()
-for img in image:
+for img in imagepaths:
     img = tf.io.read_file(img)
     img = tf.image.decode_jpeg(img, channels=3)
     img = tf.image.resize(img, size=(256, 256))
-    img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900, 4], box_indices=)
+    img = tf.reshape(img, shape=[-1, 256, 256, 3])
+    # img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900., 4.], box_indices=[900, ])
 
 # Resize images
 # image = tf.image.resize(image, size=(256,256))
@@ -246,12 +248,30 @@ parameters = {
     'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES], name='b8'), trainable=True),
 }
 
+X = tf.compat.v1.placeholder(dtype=tf.float32)
+Y = tf.compat.v1.placeholder(dtype=tf.float32)
+
+model = alexnet(X, parameters)
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model, Y))
+optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, momentum=MOMENTUM, weight_decay=LR_DECAY).minimize(cost)
+prediction = tf.argmax(model, 1)
 
 # @todo Do training
 # Launch the session
 # with tf.Session() as sess:
-#     tf.initialize_all_variables().run()
+#     # tf.initialize_all_variables().run()
+#     sess.run(tf.global_variables_initializer())
+#
+#     for epoch in range(NUM_EPOCHS):
+#         sess.run(optimizer, feed_dict={X: train_ds, Y: labels})
+#
+#     test_indices = np.arange(len())
+#     np.random.shuffle(test_indices)
+#     test_indices = test_indices[0:test_size]
+#     print(i, np.mean(np.argmax(teY[test_indices], axis=1) ==
+#                      sess.run(predict_op, feed_dict={X: teX[test_indices],
+#                                                      Y: teY[test_indices]})))
 
-    # for epoch in range(NUM_EPOCHS):
+
 
 # @todo Do validation check & model save

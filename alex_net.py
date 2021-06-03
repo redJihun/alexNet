@@ -23,11 +23,11 @@ IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 # else layers initialized with constant 0
 
 # Data directory
-INPUT_ROOT_DIR = './'
+INPUT_ROOT_DIR = './input'
 TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
 # VAL_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'valid')
 # TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
-OUTPUT_ROOT_DIR = '/home/alexnet/output'
+OUTPUT_ROOT_DIR = './output'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
 CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
 
@@ -62,20 +62,28 @@ image = tf.data.Dataset.from_tensor_slices(tensors=imagepaths).shuffle(1024, see
 label = tf.data.Dataset.from_tensor_slices(tensors=labels).shuffle(1024, seed=602)
 
 # Read images from disk
-images = list()
-for img in imagepaths:
-    img = tf.io.read_file(img)
-    img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize(img, size=(256, 256))
-    img = tf.reshape(img, shape=[-1, 256, 256, 3])
+# Resize & Crop
+image = tf.io.read_file(imagepaths)
+image = tf.image.decode_jpeg(image, channels=3)
+# images = list()
+# i=0
+# for img in image:
+#     img = tf.io.read_file(img)
+#     img = tf.image.decode_jpeg(img, channels=3)
+#     img = tf.image.resize(img, size=(256, 256))
+#     img = tf.reshape(img, shape=[-1, 256, 256, 3])
+#     images.append(img)
+#     print(i)
+#     i += 1
+# images = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(images, dtype=tf.float32))
     # img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900., 4.], box_indices=[900, ])
+# image = tf.image.crop_and_resize(image, crop_size=(227,227), boxes=[900, 4])
 
-# Resize images
+# Split datasets
 # image = tf.image.resize(image, size=(256,256))
 # train_image, train_label = image[:80000], label[:80000]
 # valid_image, valid_label = image[80000:90000], label[80000:90000]
 # test_image, test_label = image[-10000:], label[-10000:]
-# image = tf.image.crop_and_resize(image, crop_size=(227,227), boxes=[900, 4])
 
 # train_dataset, valid_dataset, test_dataset =
 # print(count=[x for x, y in enumerate(datasets)][-1]+1)
@@ -259,8 +267,8 @@ prediction = tf.argmax(model, 1)
 # @todo Do training
 # Launch the session
 # with tf.Session() as sess:
-#     # tf.initialize_all_variables().run()
-#     sess.run(tf.global_variables_initializer())
+    # tf.initialize_all_variables().run()
+    # sess.run(tf.global_variables_initializer())
 #
 #     for epoch in range(NUM_EPOCHS):
 #         sess.run(optimizer, feed_dict={X: train_ds, Y: labels})

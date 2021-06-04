@@ -20,7 +20,7 @@ MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01            # == weight_init
 IMAGE_DIM = 227
-NUM_CLASSES = 10
+NUM_CLASSES = 5
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
@@ -59,6 +59,7 @@ for img in imagepaths:
     img = tf.io.read_file(img)
     img = tf.image.decode_jpeg(img, channels=3)
     img = tf.image.resize(img, size=(256, 256))
+    # img = tf.image.crop_and_resize(tf.reshape(img, shape=(-1,256,256,3)), crop_size=(227, 227), boxes=[5, 4], box_indices=[5, ])
     images.append(img)
 print('end resizing')
 # images = tf.data.Dataset.from_tensors(tf.convert_to_tensor(images, dtype=tf.float32))
@@ -104,7 +105,7 @@ def conv(input, weight, bias, strides, name, padding='VALID'):
     :return:
     """
     # Do convolution
-    convolve = tf.nn.conv2d(input, weight, strides=[strides], padding=padding)
+    convolve = tf.nn.conv2d(input, weight, strides=strides, padding=padding)
 
     # Add bias
     bias = tf.reshape(tf.nn.bias_add(convolve, bias), tf.shape(convolve))
@@ -182,23 +183,23 @@ def dropout(input, keep_prob=0.5):
 # Make CNN model
 def alexnet(X, parameters):
     # Layer 1 : Convolution -> LRN -> Max pooling
-    l1_conv = conv(input=X, weight=parameters['w1'], bias=parameters['b1'], strides=4, name='l1_conv')
+    l1_conv = conv(input=X, weight=parameters['w1'], bias=parameters['b1'], strides=[1, 4, 4, 1], name='l1_conv')
     l1_norm = lrn(input=l1_conv, name='l1_norm')
     l1_pool = max_pool(input=l1_norm, name='l1_pool')
 
     # Layer 2 : Convolution -> LRN -> Max pooling
-    l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=1, name='l2_conv')
+    l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=[1, 1, 1, 1], name='l2_conv')
     l2_norm = lrn(input=l2_conv, name='l2_norm')
     l2_pool = max_pool(input=l2_norm, name='l2_pool')
 
     # Layer 3 : Convolution
-    l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=1, name='l3_conv')
+    l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=[1, 1, 1, 1], name='l3_conv')
 
     # Layer 4 : Convolution
-    l4_conv = conv(input=l3_conv, weight=parameters['w4'], bias=parameters['b4'], strides=1, name='l4_conv', padding='SAME')
+    l4_conv = conv(input=l3_conv, weight=parameters['w4'], bias=parameters['b4'], strides=[1, 1, 1, 1], name='l4_conv', padding='SAME')
 
     # Layer 5 : Convolution -> Max pooling
-    l5_conv = conv(input=l4_conv, weight=parameters['w5'], bias=parameters['b5'], strides=1, name='l5_conv', padding='SAME')
+    l5_conv = conv(input=l4_conv, weight=parameters['w5'], bias=parameters['b5'], strides=[1, 1, 1, 1], name='l5_conv', padding='SAME')
     l5_pool = max_pool(input=l5_conv, name='l5_pool')
 
     # Layer 6 : Flatten -> Fully connected -> Dropout
@@ -269,11 +270,13 @@ def cost(target_y, predicted_y):
     return tf.reduce_mean(tf.square(target_y - predicted_y))
 
 
-for batch_x in enumerate(train_X):
-    print(batch_x)
-    print(type(np.asarray(batch_x)))
-    batch_x = np.asarray(batch_x)
-    print(batch_x.shape)
+# for batch_x in enumerate(train_X):
+#     print(batch_x)
+#     print(type(np.asarray(batch_x)))
+#     batch_x = np.asarray(batch_x)
+#     print(batch_x.shape)
+
+
 # Define training loop
 def train(model, input_x, input_y, param):
     print('start train')

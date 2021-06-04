@@ -70,9 +70,9 @@ random.shuffle(images)
 random.shuffle(labels)
 
 # Split train/valid/test, total data size = 5,000
-train_X, train_Y = images[:4000], labels[:4000]
-valid_X, valid_Y = images[4000:4500], labels[4000:4500]
-test_X, test_Y = images[-500:], labels[-500:]
+train_X, train_Y = images[:int(len(images)*0.8)], labels[:int(len(labels)*0.8)]
+valid_X, valid_Y = images[int(len(images)*0.8):int(len(images)*0.9)], labels[int(len(labels)*0.8):int(len(labels)*0.9)]
+test_X, test_Y = images[int(len(images)*0.9):], labels[int(len(labels)*0.9):]
 
 # Convert to Tensor
 train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
@@ -253,9 +253,6 @@ parameters = {
 }
 
 
-# X = tf.Variable(shape=tf.TensorShape(None))
-# Y = tf.Variable(shape=tf.TensorShape(None))
-
 # model = alexnet(X, parameters)
 # cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model, Y))
 # optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, momentum=MOMENTUM, weight_decay=LR_DECAY).minimize(cost)
@@ -267,24 +264,45 @@ def cost(target_y, predicted_y):
     return tf.reduce_mean(tf.square(target_y - predicted_y))
 
 
+for batch_x in enumerate(train_X):
+    print(batch_x)
+    print(type(np.asarray(batch_x)))
+    batch_x = np.asarray(batch_x)
+    print(batch_x.shape())
 # Define training loop
-def train(model, input_x, label_y, parameters):
+def train(model, input_x, input_y, param):
+    print('start train')
+    batch_index = 1
+    for batch_x, batch_y in zip(enumerate(input_x), enumerate(input_y)):
+        print('take batch')
 
-    with tf.GradientTape() as tape:
-        tape.watch([lambda x: parameters[x] for x in parameters.keys()])
-        # Trainable variables are tracked by GradientTape
-        current_loss = cost(label_y, model(input_x, parameters))
+        with tf.GradientTape() as tape:
+            tape.watch([param['w1'], param['b1'], param['w2'], param['b2'],
+                       param['w3'], param['b3'], param['w4'], param['b4'],
+                       param['w5'], param['b5'], param['w6'], param['b6'],
+                       param['w7'], param['b7'], param['w8'], param['b8']])
+            # Trainable variables are tracked by GradientTape
+            current_loss = cost(batch_y, model(batch_x, param))
+            print('current_loss {}'.format(current_loss))
 
-    grad = tape.gradient(current_loss, [lambda x: parameters[x] for x in parameters.keys()])
+        grad = tape.gradient(current_loss, [param['w1'], param['b1'], param['w2'], param['b2'],
+                                            param['w3'], param['b3'], param['w4'], param['b4'],
+                                            param['w5'], param['b5'], param['w6'], param['b6'],
+                                            param['w7'], param['b7'], param['w8'], param['b8']])
+        print('Batch: {} Loss: {}'.format(batch_index, current_loss))
+        batch_index += 1
     return grad, current_loss
 
+
 for epoch in range(NUM_EPOCHS):
+    print('start epoch')
     (dw1, db1, dw2, db2, dw3, db3, dw4, db4, dw5, db5, dw6, db6, dw7, db7, dw8, db8), loss = train(alexnet, train_X, train_Y, parameters)
 
     for p in parameters.keys():
+        print('start for loop')
         parameters[p] = parameters[p] - ('d'+p)*LR_INIT
 
-    print('STEP: {} Loss: {}'.format(epoch, loss))
+    print('Epoch: {} Loss: {}'.format(epoch, loss))
 
 # Launch the session
 # with tf.Session() as sess:

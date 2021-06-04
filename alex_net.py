@@ -268,12 +268,12 @@ for batch_x in enumerate(train_X):
     print(batch_x)
     print(type(np.asarray(batch_x)))
     batch_x = np.asarray(batch_x)
-    print(batch_x.shape())
+    print(batch_x.shape)
 # Define training loop
 def train(model, input_x, input_y, param):
     print('start train')
     batch_index = 1
-    for batch_x, batch_y in zip(enumerate(input_x), enumerate(input_y)):
+    for batch_x, batch_y in zip(list(input_x.as_numpy_iterator()), list(input_y.as_numpy_iterator())):
         print('take batch')
 
         with tf.GradientTape() as tape:

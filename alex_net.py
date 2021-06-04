@@ -58,7 +58,7 @@ images = list()
 for img in imagepaths:
     img = tf.io.read_file(img)
     img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize(img, size=(256, 256))
+    img = tf.image.resize(img, size=(227, 227))
     # img = tf.image.crop_and_resize(tf.reshape(img, shape=(-1,256,256,3)), crop_size=(227, 227), boxes=[5, 4], box_indices=[5, ])
     images.append(img)
 print('end resizing')
@@ -132,7 +132,7 @@ def fc(input, weight, bias, name, activation='relu'):
     if activation == 'relu':
         act = tf.nn.relu(foo, name=name)
     else:
-        act = tf.nn.softmax(foo, name=name)
+        act = tf.nn.softmax(foo, name=name, axis=1)
 
     return act
 
@@ -188,12 +188,12 @@ def alexnet(X, parameters):
     l1_pool = max_pool(input=l1_norm, name='l1_pool')
 
     # Layer 2 : Convolution -> LRN -> Max pooling
-    l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=[1, 1, 1, 1], name='l2_conv')
+    l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=[1, 1, 1, 1], name='l2_conv', padding='SAME')
     l2_norm = lrn(input=l2_conv, name='l2_norm')
     l2_pool = max_pool(input=l2_norm, name='l2_pool')
 
     # Layer 3 : Convolution
-    l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=[1, 1, 1, 1], name='l3_conv')
+    l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=[1, 1, 1, 1], name='l3_conv', padding='SAME')
 
     # Layer 4 : Convolution
     l4_conv = conv(input=l3_conv, weight=parameters['w4'], bias=parameters['b4'], strides=[1, 1, 1, 1], name='l4_conv', padding='SAME')
@@ -212,7 +212,7 @@ def alexnet(X, parameters):
     l7_dropout = dropout(input=l7_fc)
 
     # Layer 8 : Fully connected(with softmax)   # Output layer
-    l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc')
+    l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc', activation='softmax')
 
     return l8_fc
 ########################################################################################################################
@@ -282,7 +282,6 @@ def train(model, input_x, input_y, param):
     print('start train')
     batch_index = 1
     for batch_x, batch_y in zip(list(input_x.as_numpy_iterator()), list(input_y.as_numpy_iterator())):
-        print('take batch')
 
         with tf.GradientTape() as tape:
             tape.watch([param['w1'], param['b1'], param['w2'], param['b2'],
@@ -290,7 +289,7 @@ def train(model, input_x, input_y, param):
                        param['w5'], param['b5'], param['w6'], param['b6'],
                        param['w7'], param['b7'], param['w8'], param['b8']])
             # Trainable variables are tracked by GradientTape
-            current_loss = cost(batch_y, model(batch_x, param))
+            current_loss = cost(batch_y, tf.argmax(model(batch_x, param), axis=1))
             print('current_loss {}'.format(current_loss))
 
         grad = tape.gradient(current_loss, [param['w1'], param['b1'], param['w2'], param['b2'],
@@ -298,17 +297,17 @@ def train(model, input_x, input_y, param):
                                             param['w5'], param['b5'], param['w6'], param['b6'],
                                             param['w7'], param['b7'], param['w8'], param['b8']])
         print('Batch: {} Loss: {}'.format(batch_index, current_loss))
+
+        for p in parameters.keys():
+            param[p] = param[p] - param[p]*LR_INIT
+
         batch_index += 1
-    return grad, current_loss
+    return param, current_loss
 
 
 for epoch in range(NUM_EPOCHS):
     print('start epoch')
     (dw1, db1, dw2, db2, dw3, db3, dw4, db4, dw5, db5, dw6, db6, dw7, db7, dw8, db8), loss = train(alexnet, train_X, train_Y, parameters)
-
-    for p in parameters.keys():
-        print('start for loop')
-        parameters[p] = parameters[p] - ('d'+p)*LR_INIT
 
     print('Epoch: {} Loss: {}'.format(epoch, loss))
 

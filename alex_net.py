@@ -34,6 +34,7 @@ CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
+########################################################################################################################
 # @todo Load dataset
 # After init variables, append imagefile's path and label(in number, origin is name of sub-directory).
 # Set the path of root dir, and use os.walk(root_dir) for append all images in sub-dir.
@@ -49,7 +50,6 @@ for c in classes:
         labels.append(label)
     # next directory
     label += 1
-
 
 # Read images from disk
 # Resize & Crop
@@ -86,6 +86,7 @@ valid_X = tf.data.Dataset.from_tensor_slices(tensors=valid_X)
 valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
 test_X = tf.data.Dataset.from_tensor_slices(tensors=test_X)
 test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_Y)
+########################################################################################################################
 
 
 ########################################################################################################################
@@ -177,6 +178,7 @@ def dropout(input, keep_prob=0.5):
 ########################################################################################################################
 
 
+########################################################################################################################
 # Make CNN model
 def alexnet(X, parameters):
     # Layer 1 : Convolution -> LRN -> Max pooling
@@ -212,6 +214,7 @@ def alexnet(X, parameters):
     l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc')
 
     return l8_fc
+########################################################################################################################
 
 
 # @todo image down sampling - 짧은 면 256픽셀 + 긴면 같은 비율로 줄임, 긴 면의 가운데 256픽셀 자름 -> 256x256 이미지
@@ -258,6 +261,8 @@ parameters = {
 # optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, momentum=MOMENTUM, weight_decay=LR_DECAY).minimize(cost)
 # prediction = tf.argmax(model, 1)
 
+
+########################################################################################################################
 # @todo Do training
 # Define loss function
 def cost(target_y, predicted_y):
@@ -318,7 +323,7 @@ for epoch in range(NUM_EPOCHS):
 #     print(i, np.mean(np.argmax(teY[test_indices], axis=1) ==
 #                      sess.run(predict_op, feed_dict={X: teX[test_indices],
 #                                                      Y: teY[test_indices]})))
-
+########################################################################################################################
 
 
 # @todo Do validation check & model save

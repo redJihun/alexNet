@@ -234,6 +234,12 @@ class Alexnet(object):
         l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc', activation='softmax')
 
         return l8_fc
+
+    def load_weights(self):
+        """
+
+        :return:
+        """
 ########################################################################################################################
 
 

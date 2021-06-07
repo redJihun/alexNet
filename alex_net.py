@@ -178,6 +178,55 @@ def dropout(input, keep_prob=0.5):
 ########################################################################################################################
 
 
+# Initialize variables
+# weight init with Gaussian distribution(mean=0.0 & standard_deviation=0.01)
+# bias init 1/3/8 = 0, 2/4/5/6/7 = 1
+def init_grads(parameters):
+    """
+    Initialize the parameters of model as a python dictionary.
+        - keys: 'dw1', 'db1', ... , 'db8'
+        - values: Numpy arrays.
+    :param parameters: Python dictionary that contain the parameters.
+    :return: Initialized python dictionary.
+    """
+    num = len(parameters)
+    grads = {}
+
+    # Initialize
+    for i in range(num):
+        grads['dw'+str(i+1)] = np.zeros(parameters['w'+str(i+1)].shape)
+        grads['db' + str(i + 1)] = np.zeros(parameters['b' + str(i + 1)].shape)
+
+    return grads
+
+parameters = {
+    'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
+    'b1': tf.Variable(tf.zeros(shape=[96], name='b1'), trainable=True),
+
+    'w2': tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2', trainable=True),
+    'b2': tf.Variable(tf.ones(shape=[256], name='b2'), trainable=True),
+
+    'w3': tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3', trainable=True),
+    'b3': tf.Variable(tf.zeros(shape=[384], name='b3'), trainable=True),
+
+    'w4': tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4', trainable=True),
+    'b4': tf.Variable(tf.ones(shape=[384], name='b4'), trainable=True),
+
+    'w5': tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5', trainable=True),
+    'b5': tf.Variable(tf.ones(shape=[256], name='b5'), trainable=True),
+
+    'w6': tf.Variable(tf.random.normal(shape=[6*6*256, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6', trainable=True),
+    'b6': tf.Variable(tf.ones(shape=[4096], name='b6'), trainable=True),
+
+    'w7': tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True),
+    'b7': tf.Variable(tf.ones(shape=[4096], name='b7'), trainable=True),
+
+    'w8': tf.Variable(tf.random.normal(shape=[4096, NUM_CLASSES], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
+    'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES], name='b8'), trainable=True),
+}
+
+grads = init_grads(parameters)
+
 ########################################################################################################################
 # Make CNN model
 class Alexnet(object):
@@ -202,7 +251,7 @@ class Alexnet(object):
 
     def create(self):
         # Layer 1 : Convolution -> LRN -> Max pooling
-        l1_conv = conv(input=X, weight=parameters['w1'], bias=parameters['b1'], strides=[1, 4, 4, 1], name='l1_conv')
+        l1_conv = conv(input=self.x, weight=parameters['w1'], bias=parameters['b1'], strides=[1, 4, 4, 1], name='l1_conv')
         l1_norm = lrn(input=l1_conv, name='l1_norm')
         l1_pool = max_pool(input=l1_norm, name='l1_pool')
 
@@ -252,54 +301,7 @@ class Alexnet(object):
 # @todo Data augmentation - crop, RGB(pca)
 
 
-# Initialize variables
-# weight init with Gaussian distribution(mean=0.0 & standard_deviation=0.01)
-# bias init 1/3/8 = 0, 2/4/5/6/7 = 1
-def init_grads(parameters):
-    """
-    Initialize the parameters of model as a python dictionary.
-        - keys: 'dw1', 'db1', ... , 'db8'
-        - values: Numpy arrays.
-    :param parameters: Python dictionary that contain the parameters.
-    :return: Initialized python dictionary.
-    """
-    num = len(parameters)
-    grads = {}
 
-    # Initialize
-    for i in range(num):
-        grads['dw'+str(i+1)] = np.zeros(parameters['w'+str(i+1)].shape)
-        grads['db' + str(i + 1)] = np.zeros(parameters['b' + str(i + 1)].shape)
-
-    return grads
-
-parameters = {
-    'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
-    'b1': tf.Variable(tf.zeros(shape=[96], name='b1'), trainable=True),
-
-    'w2': tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2', trainable=True),
-    'b2': tf.Variable(tf.ones(shape=[256], name='b2'), trainable=True),
-
-    'w3': tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3', trainable=True),
-    'b3': tf.Variable(tf.zeros(shape=[384], name='b3'), trainable=True),
-
-    'w4': tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4', trainable=True),
-    'b4': tf.Variable(tf.ones(shape=[384], name='b4'), trainable=True),
-
-    'w5': tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5', trainable=True),
-    'b5': tf.Variable(tf.ones(shape=[256], name='b5'), trainable=True),
-
-    'w6': tf.Variable(tf.random.normal(shape=[6*6*256, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6', trainable=True),
-    'b6': tf.Variable(tf.ones(shape=[4096], name='b6'), trainable=True),
-
-    'w7': tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True),
-    'b7': tf.Variable(tf.ones(shape=[4096], name='b7'), trainable=True),
-
-    'w8': tf.Variable(tf.random.normal(shape=[4096, NUM_CLASSES], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
-    'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES], name='b8'), trainable=True),
-}
-
-grads = init_grads(parameters)
 
 
 # model = alexnet(X, parameters)
@@ -353,7 +355,7 @@ def train(model, input_x, input_y, param):
 
 for epoch in range(NUM_EPOCHS):
     print('start epoch')
-    (dw1, db1, dw2, db2, dw3, db3, dw4, db4, dw5, db5, dw6, db6, dw7, db7, dw8, db8), loss = train(alexnet, train_X, train_Y, parameters)
+    (dw1, db1, dw2, db2, dw3, db3, dw4, db4, dw5, db5, dw6, db6, dw7, db7, dw8, db8), loss = train(Alexnet, train_X, train_Y, parameters)
 
     print('Epoch: {} Loss: {}'.format(epoch, loss))
 

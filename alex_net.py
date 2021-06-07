@@ -96,13 +96,13 @@ def conv(input, weight, bias, strides, name, padding='VALID'):
     """
     Apply the convolution to input with filters(filter == weight).
     Then add bias and apply the activation function(In AlexNet they have only ReLU function).
-    :param input:
-    :param weight:
-    :param bias:
-    :param strides:
-    :param name:
-    :param padding:
-    :return:
+    :param input: (Tensor)Placeholder for input tensor.
+    :param weight: (Tensor)Placeholder for input weight.
+    :param bias: Placeholder for input bias.
+    :param strides: (Integer)Strides of the convolution layer.
+    :param name: (String)The name of output.
+    :param padding: (String)Nome of applied padding style.'VALID' of 'SAME'.
+    :return: Return the applied convolution layer that with input parameters.
     """
     # Do convolution
     convolve = tf.nn.conv2d(input, weight, strides=strides, padding=padding)
@@ -120,9 +120,9 @@ def fc(input, weight, bias, name, activation='relu'):
     """
     Matrix input multiply with weights and add bias.
     Then apply the activation function.
-    :param input:
-    :param weight:
-    :param bias: The bias of this layer. If output is first Fully-connected layer, bias is parameters['b6']
+    :param input: Placeholder for input tensor.
+    :param weight: Placeholder for input weight.
+    :param bias: Placeholder for input bias. If output is first Fully-connected layer, bias is parameters['b6']
     :param name: The name of output.(e.g., 'fc1', 'fc2')
     :param activation: Name of activation function.(e.g., 'relu', 'softmax' etc.)
     :return: tf.tensor(applied activation)
@@ -140,13 +140,12 @@ def fc(input, weight, bias, name, activation='relu'):
 def max_pool(input, name, ksize=3, strides=2, padding='VALID'):
     """
     Apply the max_pooling. All max_pooling layer have same ksize and strides.
-    So just input input, name and sometimes padding('VALID' or 'SAME').
-    :param input:
-    :param name:
-    :param ksize:
-    :param strides:
-    :param padding:
-    :return:
+    :param input: (Tensor)Placeholder for input tensor.
+    :param name: (String)Name for return layer.
+    :param ksize: (Integer)Kernel size of the pooling layer.
+    :param strides: (Integer)Strides of the pooling layer.
+    :param padding: (String)Padding of the pooling layer. 'VALID' or 'SAME'
+    :return: Applied max-pooling layer that used input parameters.
     """
     return tf.nn.max_pool(input, ksize=ksize, strides=strides, padding=padding, name=name)
 
@@ -155,13 +154,13 @@ def lrn(input, name, radius=5, alpha=10e-4, beta=0.75, bias=2.0):
     """
     All local_response_normalization layers have same hyper-parameters.
     So just input input and name.
-    :param input:
-    :param name:
-    :param radius:
-    :param alpha:
-    :param beta:
-    :param bias:
-    :return:
+    :param input: Placeholder for input tensor.
+    :param name: Name for return.
+    :param radius: Depth that use in normalization function.
+    :param alpha: Hyperparameter of the lrn function.
+    :param beta: Hyperparameter of the lrn function.
+    :param bias: Bias of the lrn function.
+    :return: LRN layer that applied input parameters.
     """
     return tf.nn.local_response_normalization(input=input, depth_radius=radius,
                                               alpha=alpha, beta=beta, bias=bias, name=name)
@@ -170,9 +169,9 @@ def lrn(input, name, radius=5, alpha=10e-4, beta=0.75, bias=2.0):
 def dropout(input, keep_prob=0.5):
     """
     All dropout layers have same rate. So give them default value.
-    :param input:
-    :param keep_prob:
-    :return:
+    :param input: Placeholder for input tensor.
+    :param keep_prob: Probability of the dropout,
+    :return: TF's dropout method that apply the input parameters.
     """
     return tf.nn.dropout(input, rate=keep_prob)
 
@@ -181,40 +180,60 @@ def dropout(input, keep_prob=0.5):
 
 ########################################################################################################################
 # Make CNN model
-def alexnet(X, parameters):
-    # Layer 1 : Convolution -> LRN -> Max pooling
-    l1_conv = conv(input=X, weight=parameters['w1'], bias=parameters['b1'], strides=[1, 4, 4, 1], name='l1_conv')
-    l1_norm = lrn(input=l1_conv, name='l1_norm')
-    l1_pool = max_pool(input=l1_norm, name='l1_pool')
+class Alexnet(object):
 
-    # Layer 2 : Convolution -> LRN -> Max pooling
-    l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=[1, 1, 1, 1], name='l2_conv', padding='SAME')
-    l2_norm = lrn(input=l2_conv, name='l2_norm')
-    l2_pool = max_pool(input=l2_norm, name='l2_pool')
+    def __init__(self, x, weights_path='DEFAULT'):
+        """
+        Initialize the model's variable
+        :param X: Placeholder for the input tensor.
+        :param weights_path: The path of pretrained weight file.
+        """
+        # Parse input arguments into class variables.
+        self.x = x
+        self.num_classes = NUM_CLASSES
 
-    # Layer 3 : Convolution
-    l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=[1, 1, 1, 1], name='l3_conv', padding='SAME')
+        if weights_path == 'DEFAULT':
+            self.weights_path = 'alexnet_pretrained.npy'
+        else:
+            self.weights_path = weights_path
 
-    # Layer 4 : Convolution
-    l4_conv = conv(input=l3_conv, weight=parameters['w4'], bias=parameters['b4'], strides=[1, 1, 1, 1], name='l4_conv', padding='SAME')
+        # Call the create function to build AlexNet
+        self.create()
 
-    # Layer 5 : Convolution -> Max pooling
-    l5_conv = conv(input=l4_conv, weight=parameters['w5'], bias=parameters['b5'], strides=[1, 1, 1, 1], name='l5_conv', padding='SAME')
-    l5_pool = max_pool(input=l5_conv, name='l5_pool')
+    def create(self):
+        # Layer 1 : Convolution -> LRN -> Max pooling
+        l1_conv = conv(input=X, weight=parameters['w1'], bias=parameters['b1'], strides=[1, 4, 4, 1], name='l1_conv')
+        l1_norm = lrn(input=l1_conv, name='l1_norm')
+        l1_pool = max_pool(input=l1_norm, name='l1_pool')
 
-    # Layer 6 : Flatten -> Fully connected -> Dropout
-    l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(parameters['w6'])[0]])
-    l6_fc = fc(input=l6_flattened, weight=parameters['w6'], bias=parameters['b6'], name='l6_fc')
-    l6_dropout = dropout(input=l6_fc)
+        # Layer 2 : Convolution -> LRN -> Max pooling
+        l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=[1, 1, 1, 1], name='l2_conv', padding='SAME')
+        l2_norm = lrn(input=l2_conv, name='l2_norm')
+        l2_pool = max_pool(input=l2_norm, name='l2_pool')
 
-    # Layer 7 : Fully connected -> Dropout
-    l7_fc = fc(input=l6_dropout, weight=parameters['w7'], bias=parameters['b7'], name='l7_fc')
-    l7_dropout = dropout(input=l7_fc)
+        # Layer 3 : Convolution
+        l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=[1, 1, 1, 1], name='l3_conv', padding='SAME')
 
-    # Layer 8 : Fully connected(with softmax)   # Output layer
-    l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc', activation='softmax')
+        # Layer 4 : Convolution
+        l4_conv = conv(input=l3_conv, weight=parameters['w4'], bias=parameters['b4'], strides=[1, 1, 1, 1], name='l4_conv', padding='SAME')
 
-    return l8_fc
+        # Layer 5 : Convolution -> Max pooling
+        l5_conv = conv(input=l4_conv, weight=parameters['w5'], bias=parameters['b5'], strides=[1, 1, 1, 1], name='l5_conv', padding='SAME')
+        l5_pool = max_pool(input=l5_conv, name='l5_pool')
+
+        # Layer 6 : Flatten -> Fully connected -> Dropout
+        l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(parameters['w6'])[0]])
+        l6_fc = fc(input=l6_flattened, weight=parameters['w6'], bias=parameters['b6'], name='l6_fc')
+        l6_dropout = dropout(input=l6_fc)
+
+        # Layer 7 : Fully connected -> Dropout
+        l7_fc = fc(input=l6_dropout, weight=parameters['w7'], bias=parameters['b7'], name='l7_fc')
+        l7_dropout = dropout(input=l7_fc)
+
+        # Layer 8 : Fully connected(with softmax)   # Output layer
+        l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc', activation='softmax')
+
+        return l8_fc
 ########################################################################################################################
 
 
@@ -230,6 +249,24 @@ def alexnet(X, parameters):
 # Initialize variables
 # weight init with Gaussian distribution(mean=0.0 & standard_deviation=0.01)
 # bias init 1/3/8 = 0, 2/4/5/6/7 = 1
+def init_grads(parameters):
+    """
+    Initialize the parameters of model as a python dictionary.
+        - keys: 'dw1', 'db1', ... , 'db8'
+        - values: Numpy arrays.
+    :param parameters: Python dictionary that contain the parameters.
+    :return: Initialized python dictionary.
+    """
+    num = len(parameters)
+    grads = {}
+
+    # Initialize
+    for i in range(num):
+        grads['dw'+str(i+1)] = np.zeros(parameters['w'+str(i+1)].shape)
+        grads['db' + str(i + 1)] = np.zeros(parameters['b' + str(i + 1)].shape)
+
+    return grads
+
 parameters = {
     'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
     'b1': tf.Variable(tf.zeros(shape=[96], name='b1'), trainable=True),
@@ -256,6 +293,8 @@ parameters = {
     'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES], name='b8'), trainable=True),
 }
 
+grads = init_grads(parameters)
+
 
 # model = alexnet(X, parameters)
 # cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model, Y))
@@ -269,6 +308,7 @@ parameters = {
 def cost(target_y, predicted_y):
     return tf.reduce_mean(tf.square(target_y - predicted_y))
 
+tf.optimizers.SGDW
 
 # for batch_x in enumerate(train_X):
 #     print(batch_x)

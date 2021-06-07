@@ -4,6 +4,7 @@ import os
 # Deep-learning framework
 import tensorflow as tf
 import tensorflow_datasets as tfds
+import tensorflow_addons as tfa
 
 # Manipulate
 import numpy as np
@@ -81,12 +82,9 @@ valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_t
 test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
 
 # Build Tf dataset
-train_X = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128)
-train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-valid_X = tf.data.Dataset.from_tensor_slices(tensors=valid_X)
-valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-test_X = tf.data.Dataset.from_tensor_slices(tensors=test_X)
-test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_Y)
+train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
+valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
+test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
 ########################################################################################################################
 
 
@@ -175,13 +173,73 @@ def dropout(input, keep_prob=0.5):
     """
     return tf.nn.dropout(input, rate=keep_prob)
 
+
+########################################################################################################################
+# Make CNN model
+class Alexnet(object):
+
+    def __init__(self, param, weights_path='DEFAULT'):
+        """
+        Initialize the model's variable
+        :param X: Placeholder for the input tensor.
+        :param weights_path: The path of pretrained weight file.
+        """
+        # Parse input arguments into class variables.
+        self.num_classes = NUM_CLASSES
+        self.param = param
+
+        if weights_path == 'DEFAULT':
+            self.weights_path = 'alexnet_pretrained.npy'
+        else:
+            self.weights_path = weights_path
+
+    def run(self, x):
+        # Layer 1 : Convolution -> LRN -> Max pooling
+        l1_conv = conv(input=x, weight=self.param['w1'], bias=self.param['b1'], strides=4, name='l1_conv')
+        l1_norm = lrn(input=l1_conv, name='l1_norm')
+        l1_pool = max_pool(input=l1_norm, name='l1_pool')
+
+        # Layer 2 : Convolution -> LRN -> Max pooling
+        l2_conv = conv(input=l1_pool, weight=self.param['w2'], bias=self.param['b2'], strides=1, name='l2_conv', padding='SAME')
+        l2_norm = lrn(input=l2_conv, name='l2_norm')
+        l2_pool = max_pool(input=l2_norm, name='l2_pool')
+
+        # Layer 3 : Convolution
+        l3_conv = conv(input=l2_pool, weight=self.param['w3'], bias=self.param['b3'], strides=1, name='l3_conv', padding='SAME')
+
+        # Layer 4 : Convolution
+        l4_conv = conv(input=l3_conv, weight=self.param['w4'], bias=self.param['b4'], strides=1, name='l4_conv', padding='SAME')
+
+        # Layer 5 : Convolution -> Max pooling
+        l5_conv = conv(input=l4_conv, weight=self.param['w5'], bias=self.param['b5'], strides=1, name='l5_conv', padding='SAME')
+        l5_pool = max_pool(input=l5_conv, name='l5_pool')
+
+        # Layer 6 : Flatten -> Fully connected -> Dropout
+        l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(parameters['w6'])[0]])
+        l6_fc = fc(input=l6_flattened, weight=self.param['w6'], bias=self.param['b6'], name='l6_fc')
+        l6_dropout = dropout(input=l6_fc)
+
+        # Layer 7 : Fully connected -> Dropout
+        l7_fc = fc(input=l6_dropout, weight=self.param['w7'], bias=self.param['b7'], name='l7_fc')
+        l7_dropout = dropout(input=l7_fc)
+
+        # Layer 8 : Fully connected(with softmax)   # Output layer
+        l8_fc = fc(input=l7_dropout, weight=self.param['w8'], bias=self.param['b8'], name='l8_fc', activation='softmax')
+
+        return l8_fc
+
+    def load_weights(self):
+        """
+
+        :return:
+        """
 ########################################################################################################################
 
 
 # Initialize variables
 # weight init with Gaussian distribution(mean=0.0 & standard_deviation=0.01)
 # bias init 1/3/8 = 0, 2/4/5/6/7 = 1
-def init_grads(parameters):
+def init_grads(param):
     """
     Initialize the parameters of model as a python dictionary.
         - keys: 'dw1', 'db1', ... , 'db8'
@@ -189,15 +247,15 @@ def init_grads(parameters):
     :param parameters: Python dictionary that contain the parameters.
     :return: Initialized python dictionary.
     """
-    num = len(parameters)
-    grads = {}
+    num = int(len(param)/2)
+    g = {}
 
     # Initialize
     for i in range(num):
-        grads['dw'+str(i+1)] = np.zeros(parameters['w'+str(i+1)].shape)
-        grads['db' + str(i + 1)] = np.zeros(parameters['b' + str(i + 1)].shape)
+        g['dw'+str(i+1)] = np.zeros(param['w'+str(i+1)].shape)
+        g['db'+str(i + 1)] = np.zeros(param['b'+str(i + 1)].shape)
 
-    return grads
+    return g
 
 parameters = {
     'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
@@ -225,70 +283,7 @@ parameters = {
     'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES], name='b8'), trainable=True),
 }
 
-grads = init_grads(parameters)
-
-########################################################################################################################
-# Make CNN model
-class Alexnet(object):
-
-    def __init__(self, x, weights_path='DEFAULT'):
-        """
-        Initialize the model's variable
-        :param X: Placeholder for the input tensor.
-        :param weights_path: The path of pretrained weight file.
-        """
-        # Parse input arguments into class variables.
-        self.x = x
-        self.num_classes = NUM_CLASSES
-
-        if weights_path == 'DEFAULT':
-            self.weights_path = 'alexnet_pretrained.npy'
-        else:
-            self.weights_path = weights_path
-
-        # Call the create function to build AlexNet
-        self.create()
-
-    def create(self):
-        # Layer 1 : Convolution -> LRN -> Max pooling
-        l1_conv = conv(input=self.x, weight=parameters['w1'], bias=parameters['b1'], strides=[1, 4, 4, 1], name='l1_conv')
-        l1_norm = lrn(input=l1_conv, name='l1_norm')
-        l1_pool = max_pool(input=l1_norm, name='l1_pool')
-
-        # Layer 2 : Convolution -> LRN -> Max pooling
-        l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=[1, 1, 1, 1], name='l2_conv', padding='SAME')
-        l2_norm = lrn(input=l2_conv, name='l2_norm')
-        l2_pool = max_pool(input=l2_norm, name='l2_pool')
-
-        # Layer 3 : Convolution
-        l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=[1, 1, 1, 1], name='l3_conv', padding='SAME')
-
-        # Layer 4 : Convolution
-        l4_conv = conv(input=l3_conv, weight=parameters['w4'], bias=parameters['b4'], strides=[1, 1, 1, 1], name='l4_conv', padding='SAME')
-
-        # Layer 5 : Convolution -> Max pooling
-        l5_conv = conv(input=l4_conv, weight=parameters['w5'], bias=parameters['b5'], strides=[1, 1, 1, 1], name='l5_conv', padding='SAME')
-        l5_pool = max_pool(input=l5_conv, name='l5_pool')
-
-        # Layer 6 : Flatten -> Fully connected -> Dropout
-        l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(parameters['w6'])[0]])
-        l6_fc = fc(input=l6_flattened, weight=parameters['w6'], bias=parameters['b6'], name='l6_fc')
-        l6_dropout = dropout(input=l6_fc)
-
-        # Layer 7 : Fully connected -> Dropout
-        l7_fc = fc(input=l6_dropout, weight=parameters['w7'], bias=parameters['b7'], name='l7_fc')
-        l7_dropout = dropout(input=l7_fc)
-
-        # Layer 8 : Fully connected(with softmax)   # Output layer
-        l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc', activation='softmax')
-
-        return l8_fc
-
-    def load_weights(self):
-        """
-
-        :return:
-        """
+gradients = init_grads(parameters)
 ########################################################################################################################
 
 
@@ -299,11 +294,6 @@ class Alexnet(object):
 
 
 # @todo Data augmentation - crop, RGB(pca)
-
-
-
-
-
 # model = alexnet(X, parameters)
 # cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model, Y))
 # optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, momentum=MOMENTUM, weight_decay=LR_DECAY).minimize(cost)
@@ -314,48 +304,45 @@ class Alexnet(object):
 # @todo Do training
 # Define loss function
 def cost(target_y, predicted_y):
+    # return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=target_y, logits=predicted_y))
     return tf.reduce_mean(tf.square(target_y - predicted_y))
 
-tf.optimizers.SGDW
-
-# for batch_x in enumerate(train_X):
-#     print(batch_x)
-#     print(type(np.asarray(batch_x)))
-#     batch_x = np.asarray(batch_x)
-#     print(batch_x.shape)
+# # Create optimizer and apply gradient descent to the trainable variables
+optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=LR_INIT, weight_decay=LR_DECAY, name='optimizer')
 
 
 # Define training loop
-def train(model, input_x, input_y, param):
+def train(input_x, input_y, param, grad):
     print('start train')
     batch_index = 1
+    model = Alexnet(param=param)
     for batch_x, batch_y in zip(list(input_x.as_numpy_iterator()), list(input_y.as_numpy_iterator())):
+        current_loss = cost(batch_y, tf.argmax(model.run(x=batch_x), axis=1))
 
-        with tf.GradientTape() as tape:
-            tape.watch([param['w1'], param['b1'], param['w2'], param['b2'],
-                       param['w3'], param['b3'], param['w4'], param['b4'],
-                       param['w5'], param['b5'], param['w6'], param['b6'],
-                       param['w7'], param['b7'], param['w8'], param['b8']])
-            # Trainable variables are tracked by GradientTape
-            current_loss = cost(batch_y, tf.argmax(model(batch_x, param), axis=1))
-            print('current_loss {}'.format(current_loss))
+        # Loop in number of layer(=number of weights, number of bias)
+        for i in range(8, 0, -1):
+            # print
+            with tf.GradientTape() as tape:
+                # Trainable variables are tracked by GradientTape
+                tape.watch([param['w' + str(i)], param['b' + str(i)]])
+                print('current_loss {}'.format(current_loss))
+                # Get gradients
+                grad['dw' + str(i)], grad['db' + str(i)] = tape.gradient(current_loss, [param['w' + str(i)], param['b' + str(i)]])
+                print(grad['dw' + str(i)], grad['db' + str(i)])
+                optimizer.apply_gradients((grad['dw' + str(i)], param['w' + str(i)]))
+                optimizer.apply_gradients((grad['db' + str(i)], param['b' + str(i)]))
 
-        grad = tape.gradient(current_loss, [param['w1'], param['b1'], param['w2'], param['b2'],
-                                            param['w3'], param['b3'], param['w4'], param['b4'],
-                                            param['w5'], param['b5'], param['w6'], param['b6'],
-                                            param['w7'], param['b7'], param['w8'], param['b8']])
         print('Batch: {} Loss: {}'.format(batch_index, current_loss))
-
-        for p in parameters.keys():
-            param[p] = param[p] - param[p]*LR_INIT
-
+        # for p in parameters.keys():
+        #     param[p] = param[p] - param[p]*LR_INIT
         batch_index += 1
-    return param, current_loss
+
+    return param, grads, current_loss
 
 
 for epoch in range(NUM_EPOCHS):
     print('start epoch')
-    (dw1, db1, dw2, db2, dw3, db3, dw4, db4, dw5, db5, dw6, db6, dw7, db7, dw8, db8), loss = train(Alexnet, train_X, train_Y, parameters)
+    params, grads, loss = train(train_X, train_Y, parameters, gradients)
 
     print('Epoch: {} Loss: {}'.format(epoch, loss))
 

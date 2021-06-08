@@ -104,7 +104,6 @@ def conv(input, weight, bias, strides, name, padding='VALID'):
     """
     # Do convolution
     convolve = tf.nn.conv2d(input, weight, strides=strides, padding=padding)
-
     # Add bias
     bias = tf.reshape(tf.nn.bias_add(convolve, bias), tf.shape(convolve))
 
@@ -177,25 +176,25 @@ def dropout(input, keep_prob=0.5):
 ########################################################################################################################
 # Make CNN model
 class Alexnet(object):
-    def init_grads(p):
-        """
-        Initialize the parameters of model as a python dictionary.
-            - keys: 'dw1', 'db1', ... , 'db8'
-            - values: Numpy arrays.
-        :param param: Python dictionary that contain the parameters.
-        :return: Initialized python dictionary.
-        """
-        num = int(len(p) / 2)
-        g = {}
-
-        # Initialize
-        for i in range(num):
-            g['dw' + str(i + 1)] = tf.Variable(tf.zeros(shape=p['w' + str(i + 1)].shape), trainable=True,
-                                               name=('dw' + str(i + 1)))
-            g['db' + str(i + 1)] = tf.Variable(tf.zeros(shape=p['b' + str(i + 1)].shape), trainable=True,
-                                               name=('db' + str(i + 1)))
-
-        return g
+    # def init_grads(p):
+    #     """
+    #     Initialize the parameters of model as a python dictionary.
+    #         - keys: 'dw1', 'db1', ... , 'db8'
+    #         - values: Numpy arrays.
+    #     :param param: Python dictionary that contain the parameters.
+    #     :return: Initialized python dictionary.
+    #     """
+    #     num = int(len(p) / 2)
+    #     g = {}
+    #
+    #     # Initialize
+    #     for i in range(num):
+    #         g['dw' + str(i + 1)] = tf.Variable(tf.zeros(shape=p['w' + str(i + 1)].shape), trainable=True,
+    #                                            name=('dw' + str(i + 1)))
+    #         g['db' + str(i + 1)] = tf.Variable(tf.zeros(shape=p['b' + str(i + 1)].shape), trainable=True,
+    #                                            name=('db' + str(i + 1)))
+    #
+    #     return g
 
     def __init__(self, weights_path='DEFAULT'):
         """
@@ -205,32 +204,32 @@ class Alexnet(object):
         """
         # Parse input arguments into class variables.
         self.num_classes = NUM_CLASSES
-        self.param = {
-    'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
-    'b1': tf.Variable(tf.zeros(shape=[96]), trainable=True, name='b1'),
+        # self.param =
+        self.w1 = tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True)
+        self.b1 = tf.Variable(tf.zeros(shape=[96]), trainable=True, name='b1')
 
-    'w2': tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2', trainable=True),
-    'b2': tf.Variable(tf.ones(shape=[256]), trainable=True, name='b2'),
+        self.w2 = tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2', trainable=True)
+        self.b2 = tf.Variable(tf.ones(shape=[256]), trainable=True, name='b2')
 
-    'w3': tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3', trainable=True),
-    'b3': tf.Variable(tf.zeros(shape=[384]), trainable=True, name='b3'),
+        self.w3 = tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3', trainable=True)
+        self.b3 = tf.Variable(tf.zeros(shape=[384]), trainable=True, name='b3')
 
-    'w4': tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4', trainable=True),
-    'b4': tf.Variable(tf.ones(shape=[384]), trainable=True, name='b4'),
+        self.w4 = tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4', trainable=True)
+        self.b4 = tf.Variable(tf.ones(shape=[384]), trainable=True, name='b4')
 
-    'w5': tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5', trainable=True),
-    'b5': tf.Variable(tf.ones(shape=[256]), trainable=True, name='b5'),
+        self.w5 = tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5', trainable=True)
+        self.b5 = tf.Variable(tf.ones(shape=[256]), trainable=True, name='b5')
 
-    'w6': tf.Variable(tf.random.normal(shape=[6*6*256, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6', trainable=True),
-    'b6': tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b6'),
+        self.w6 = tf.Variable(tf.random.normal(shape=[6 * 6 * 256, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6', trainable=True)
+        self.b6 = tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b6')
 
-    'w7': tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True),
-    'b7': tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b7'),
+        self.w7 = tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True)
+        self.b7 = tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b7')
 
-    'w8': tf.Variable(tf.random.normal(shape=[4096, NUM_CLASSES], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
-    'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES]), trainable=True, name='b8'),
-}
-        self.grad = self.init_grads(self.param)
+        self.w8 = tf.Variable(tf.random.normal(shape=[4096, NUM_CLASSES], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True)
+        self.b8 = tf.Variable(tf.zeros(shape=[NUM_CLASSES]), trainable=True, name='b8')
+
+        # self.grad = self.init_grads(self.param)
 
         if weights_path == 'DEFAULT':
             self.weights_path = 'alexnet_pretrained.npy'
@@ -239,36 +238,36 @@ class Alexnet(object):
 
     def run(self, x):
         # Layer 1 : Convolution -> LRN -> Max pooling
-        l1_conv = conv(input=x, weight=self.param['w1'], bias=self.param['b1'], strides=4, name='l1_conv')
+        l1_conv = conv(input=x, weight=self.w1, bias=self.b1, strides=4, name='l1_conv')
         l1_norm = lrn(input=l1_conv, name='l1_norm')
         l1_pool = max_pool(input=l1_norm, name='l1_pool')
 
         # Layer 2 : Convolution -> LRN -> Max pooling
-        l2_conv = conv(input=l1_pool, weight=self.param['w2'], bias=self.param['b2'], strides=1, name='l2_conv', padding='SAME')
+        l2_conv = conv(input=l1_pool, weight=self.w2, bias=self.b2, strides=1, name='l2_conv', padding='SAME')
         l2_norm = lrn(input=l2_conv, name='l2_norm')
         l2_pool = max_pool(input=l2_norm, name='l2_pool')
 
         # Layer 3 : Convolution
-        l3_conv = conv(input=l2_pool, weight=self.param['w3'], bias=self.param['b3'], strides=1, name='l3_conv', padding='SAME')
+        l3_conv = conv(input=l2_pool, weight=self.w3, bias=self.b3, strides=1, name='l3_conv', padding='SAME')
 
         # Layer 4 : Convolution
-        l4_conv = conv(input=l3_conv, weight=self.param['w4'], bias=self.param['b4'], strides=1, name='l4_conv', padding='SAME')
+        l4_conv = conv(input=l3_conv, weight=self.w4, bias=self.b4, strides=1, name='l4_conv', padding='SAME')
 
         # Layer 5 : Convolution -> Max pooling
-        l5_conv = conv(input=l4_conv, weight=self.param['w5'], bias=self.param['b5'], strides=1, name='l5_conv', padding='SAME')
+        l5_conv = conv(input=l4_conv, weight=self.w5, bias=self.b5, strides=1, name='l5_conv', padding='SAME')
         l5_pool = max_pool(input=l5_conv, name='l5_pool')
 
         # Layer 6 : Flatten -> Fully connected -> Dropout
-        l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(self.param['w6'])[0]])
-        l6_fc = fc(input=l6_flattened, weight=self.param['w6'], bias=self.param['b6'], name='l6_fc')
+        l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(self.w6)[0]])
+        l6_fc = fc(input=l6_flattened, weight=self.w6, bias=self.b6, name='l6_fc')
         l6_dropout = dropout(input=l6_fc)
 
         # Layer 7 : Fully connected -> Dropout
-        l7_fc = fc(input=l6_dropout, weight=self.param['w7'], bias=self.param['b7'], name='l7_fc')
+        l7_fc = fc(input=l6_dropout, weight=self.w7, bias=self.b7, name='l7_fc')
         l7_dropout = dropout(input=l7_fc)
 
         # Layer 8 : Fully connected(with softmax)   # Output layer
-        l8_fc = fc(input=l7_dropout, weight=self.param['w8'], bias=self.param['b8'], name='l8_fc', activation='softmax')
+        l8_fc = fc(input=l7_dropout, weight=self.w8, bias=self.b8, name='l8_fc', activation='softmax')
 
         return l8_fc
 
@@ -348,6 +347,29 @@ class Alexnet(object):
 ########################################################################################################################
 # @todo Do training
 # Define loss function
+
+
+def init_grads(p):
+    """
+    Initialize the parameters of model as a python dictionary.
+        - keys: 'dw1', 'db1', ... , 'db8'
+        - values: Numpy arrays.
+    :param p: Python dictionary that contain the parameters.
+    :return: Initialized python dictionary.
+    """
+    num = int(len(p) / 2)
+    g = {}
+
+    # Initialize
+    for i in range(num):
+        g['dw' + str(i + 1)] = tf.Variable(tf.zeros(shape=p['w' + str(i + 1)].shape), trainable=True,
+                                           name=('dw' + str(i + 1)))
+        g['db' + str(i + 1)] = tf.Variable(tf.zeros(shape=p['b' + str(i + 1)].shape), trainable=True,
+                                           name=('db' + str(i + 1)))
+
+    return g
+
+
 def cost(target_y, predicted_y):
     # return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=target_y, logits=predicted_y))
     return tf.reduce_mean(tf.square(target_y - predicted_y))
@@ -362,20 +384,46 @@ def train(input_x, input_y):
     print('start train')
     batch_index = 1
     model = Alexnet()
+    # grad = init_grads(model.param)
+    var_list = [model.w1, model.b1, model.w2, model.b2, model.w3, model.b3, model.w4, model.b4,
+                model.w5, model.b5, model.w6, model.b6, model.w7, model.b7, model.w8, model.b8]
     for batch_x, batch_y in zip(list(input_x.as_numpy_iterator()), list(input_y.as_numpy_iterator())):
-
+        predictions = model.run(x=batch_x)
+        current_loss = cost(batch_y, tf.argmax(predictions, axis=1))
+        optimizer.minimize(current_loss, var_list)
+        print('current_loss {}'.format(current_loss))
         # Loop in number of layer(=number of weights, number of bias)
-        with tf.GradientTape() as tape:
-            # Trainable variables are tracked by GradientTape
-            # tape.watch(model.tra)
-            predictions = tf.argmax(model.run(x=batch_x), axis=1)
-            current_loss = cost(batch_y, predictions)
-            print('current_loss {}'.format(current_loss))
-
-        # Get gradients
-        grad = tape.gradient(current_loss, param)
-        # [foo, bar] = tape.gradient(y, [param['w1'], param['b1']])
-        # optimizer.apply_gradients(zip(foo, param['w1']))
+        # with tf.GradientTape(persistent=True) as t:
+        #     t.watch([model.param['w8'], model.param['b8']])
+        #     # Get gradients
+        #     grad['dw8'], grad['db8'] = t.gradient(current_loss, [model.param['w8'], model.param['b8']])
+        #     print([model.param['w8'], model.param['b8']], grad['dw8'], grad['db8'])
+        #
+        #     t.watch([model.param['w7'], model.param['b7']])
+        #     [grad['dw7'], grad['db7']] = t.gradient([grad['dw8'], grad['db8']], [model.param['w7'], model.param['b7']])
+        #
+        #     t.watch([model.param['w6'], model.param['b6']])
+        #     [grad['dw6'], grad['db6']] = t.gradient([grad['dw7'], grad['db7']], [model.param['w6'], model.param['b6']])
+        #
+        #     t.watch([model.param['w5'], model.param['b5']])
+        #     [grad['dw5'], grad['db5']] = t.gradient([grad['dw6'], grad['db6']], [model.param['w5'], model.param['b5']])
+        #
+        #     t.watch([model.param['w4'], model.param['b4']])
+        #     [grad['dw4'], grad['db4']] = t.gradient([grad['dw5'], grad['db5']], [model.param['w4'], model.param['b4']])
+        #
+        #     t.watch([model.param['w3'], model.param['b3']])
+        #     [grad['dw3'], grad['db3']] = t.gradient([grad['dw4'], grad['db4']], [model.param['w3'], model.param['b3']])
+        #
+        #     t.watch([model.param['w2'], model.param['b2']])
+        #     [grad['dw2'], grad['db2']] = t.gradient([grad['dw3'], grad['db3']], [model.param['w2'], model.param['b2']])
+        #
+        #     t.watch([model.param['w1'], model.param['b1']])
+        #     [grad['dw1'], grad['db1']] = t.gradient([grad['dw2'], grad['db2']], [model.param['w1'], model.param['b1']])
+        # Trainable variables are tracked by GradientTape
+        # tape.watch([grad, model.param])
+        print(grad)
+        # print(model.param)
+        # optimizer.apply_gradients(zip(grad, model.param))
         # optimizer.apply_gradients(zip(bar, param['b1']))
         # for i in range(1, 9):
         #     optimizer.apply_gradients((grad['dw' + str(i)], param['w' + str(i)]))
@@ -386,7 +434,7 @@ def train(input_x, input_y):
         #     param[p] = param[p] - param[p]*LR_INIT
         batch_index += 1
 
-    return param, grad, current_loss
+    return model.param, grad, current_loss
 
 
 for epoch in range(NUM_EPOCHS):

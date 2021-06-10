@@ -274,6 +274,7 @@ def loss(step, x, y, param):
 
 # # Create optimizer and apply gradient descent to the trainable variables
 optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=LR_INIT, weight_decay=LR_DECAY, name='optimizer')
+# optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, name='optimizer')
 parameters = {
     'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
     'b1': tf.Variable(tf.zeros(shape=[96]), trainable=True, name='b1'),
@@ -308,6 +309,7 @@ for epoch in range(NUM_EPOCHS):
         foo += 1
         optimizer.minimize(lambda: loss(epoch, batch_X, batch_Y, parameters), var_list=parameters)
         # optimizer.minimize(lambda: loss(epoch, batch_X, batch_Y), var_list=[w1, b1, w2, b2, w3, b3, ])
+        print(parameters['w1'])
 
 # Define training loop
 ########################################################################################################################

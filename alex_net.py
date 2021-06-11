@@ -295,7 +295,6 @@ def loss(step, x, y, param):
 #     initial_learning_rate= 0.001,
 #     decay_steps=
 # )
-# weight decay
 # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=0.5, name='optimizer')
 optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
 # optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, name='optimizer')
@@ -327,7 +326,7 @@ parameters = {
 # var_list = {'w1',}
 train_X, train_Y, valid_X, valid_Y, test_X, test_Y = load_dataset(TRAIN_IMG_DIR)
 # checkpoint = tf.train.Checkpoint(CHECKPOINT_DIR)
-np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
+# np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
 for epoch in range(NUM_EPOCHS):
     foo = 1
     for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):

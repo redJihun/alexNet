@@ -71,14 +71,14 @@ def load_dataset(path):
 
     # Build Tf dataset
     train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-    valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-    test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
+    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
+    # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
 
     return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
 
 
 def loss(name, x, y, param):
-    inputs = tf.constant(x, name = 'inputs')
+    inputs = tf.constant(x, name='inputs')
 
     # layer 1
     l1_convolve = tf.nn.conv2d(input=inputs, filters=param['w1'], strides=4, padding='VALID', name='l1_convolve')
@@ -144,9 +144,13 @@ for file in walk[2]:
 min_loss = 99999999
 best_model = dict()
 for model in param_paths:
-    loaded_param = np.load(model)
-    print(loaded_param)
-    loss = loss(file, valid_X, valid_Y, param=loaded_param)
+    loaded_param = np.load(model, allow_pickle=True)
+    loaded_param = {key: loaded_param[key].item() for key in loaded_param}
+    print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
+    loss = loss(model,
+                valid_X,
+                valid_Y,
+                param=loaded_param['arr_0'])
     if loss < min_loss:
         min_loss = loss
         best_model = loaded_param

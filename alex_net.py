@@ -1,16 +1,18 @@
 # For files
 import os
+import time
 
 # Deep-learning framework
 import tensorflow as tf
 import tensorflow_datasets as tfds
+import tensorflow_addons as tfa
 
 # Manipulate
 import numpy as np
 import random
 
 RANDOM_SEED = 602
-random.seed(RANDOM_SEED)
+# random.seed(RANDOM_SEED)
 tf.random.set_seed(RANDOM_SEED)
 
 # Hyper-parameters
@@ -38,342 +40,187 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 # @todo Load dataset
 # After init variables, append imagefile's path and label(in number, origin is name of sub-directory).
 # Set the path of root dir, and use os.walk(root_dir) for append all images in sub-dir.
-imagepaths, labels = list(), list()
-label = 0
-classes = sorted(os.walk(TRAIN_IMG_DIR).__next__()[1])
-for c in classes:
-    c_dir = os.path.join(TRAIN_IMG_DIR, c)
-    walk = os.walk(c_dir).__next__()
-    # Add each image
-    for sample in walk[2]:
-        imagepaths.append(os.path.join(c_dir, sample))
-        labels.append(label)
-    # next directory
-    label += 1
+def load_dataset(path):
+    imagepaths, labels = list(), list()
+    label = 0
+    classes = sorted(os.walk(path).__next__()[1])
+    for c in classes:
+        c_dir = os.path.join(path, c)
+        walk = os.walk(c_dir).__next__()
+        # Add each image
+        for sample in walk[2]:
+            imagepaths.append(os.path.join(c_dir, sample))
+            labels.append(label)
+        # next directory
+        label += 1
 
-# Read images from disk
-# Resize & Crop
-print('start resizing image')
-images = list()
-for img in imagepaths:
-    img = tf.io.read_file(img)
-    img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize(img, size=(227, 227))
-    # img = tf.image.crop_and_resize(tf.reshape(img, shape=(-1,256,256,3)), crop_size=(227, 227), boxes=[5, 4], box_indices=[5, ])
-    images.append(img)
-print('end resizing')
-# images = tf.data.Dataset.from_tensors(tf.convert_to_tensor(images, dtype=tf.float32))
-# img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900., 4.], box_indices=[900, ])
-# image = tf.image.crop_and_resize(image, crop_size=(227,227), boxes=[900, 4])
+    # Read images from disk
+    # Resize & Crop
+    print('start resizing image')
+    images = list()
+    for img in imagepaths:
+        img = tf.io.read_file(img)
+        img = tf.image.decode_jpeg(img, channels=3)
+        img = tf.image.resize(img, size=(227, 227))
+        # img = tf.image.crop_and_resize(tf.reshape(img, shape=(-1,256,256,3)), crop_size=(227, 227), boxes=[5, 4], box_indices=[5, ])
+        images.append(img)
+    print('end resizing')
+    # images = tf.data.Dataset.from_tensors(tf.convert_to_tensor(images, dtype=tf.float32))
+    # img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900., 4.], box_indices=[900, ])
+    # image = tf.image.crop_and_resize(image, crop_size=(227,227), boxes=[900, 4])
 
-# Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
-random.shuffle(images)
-random.shuffle(labels)
+    # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
+    foo = list(zip(images, labels))
+    random.Random(RANDOM_SEED).shuffle(foo)
+    # random.Random(RANDOM_SEED).shuffle(images)
+    # random.Random(RANDOM_SEED).shuffle(labels)
+    images, labels = zip(*foo)
 
-# Split train/valid/test, total data size = 5,000
-train_X, train_Y = images[:int(len(images)*0.8)], labels[:int(len(labels)*0.8)]
-valid_X, valid_Y = images[int(len(images)*0.8):int(len(images)*0.9)], labels[int(len(labels)*0.8):int(len(labels)*0.9)]
-test_X, test_Y = images[int(len(images)*0.9):], labels[int(len(labels)*0.9):]
+    # Split train/valid/test, total data size = 5,000
+    train_X, train_Y = images[:int(len(images)*0.8)], labels[:int(len(labels)*0.8)]
+    valid_X, valid_Y = images[int(len(images)*0.8):int(len(images)*0.9)], labels[int(len(labels)*0.8):int(len(labels)*0.9)]
+    test_X, test_Y = images[int(len(images)*0.9):], labels[int(len(labels)*0.9):]
 
-# Convert to Tensor
-train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
-valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_to_tensor(valid_Y, dtype=tf.int32)
-test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
+    # Convert to Tensor
+    train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
+    valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_to_tensor(valid_Y, dtype=tf.int32)
+    test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
 
-# Build Tf dataset
-train_X = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128)
-train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-valid_X = tf.data.Dataset.from_tensor_slices(tensors=valid_X)
-valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-test_X = tf.data.Dataset.from_tensor_slices(tensors=test_X)
-test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_Y)
+    # Build Tf dataset
+    train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
+    valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
+    test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
+
+    return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
 ########################################################################################################################
 
 
 ########################################################################################################################
-# Define conv, fc, max_pool, lrn, dropout method
-def conv(input, weight, bias, strides, name, padding='VALID'):
-    """
-    Apply the convolution to input with filters(filter == weight).
-    Then add bias and apply the activation function(In AlexNet they have only ReLU function).
-    :param input: (Tensor)Placeholder for input tensor.
-    :param weight: (Tensor)Placeholder for input weight.
-    :param bias: Placeholder for input bias.
-    :param strides: (Integer)Strides of the convolution layer.
-    :param name: (String)The name of output.
-    :param padding: (String)Nome of applied padding style.'VALID' of 'SAME'.
-    :return: Return the applied convolution layer that with input parameters.
-    """
-    # Do convolution
-    convolve = tf.nn.conv2d(input, weight, strides=strides, padding=padding)
+# 원 라벨 y와 예측된 라벨을 비교하여 계산된 loss를 리턴하는 함수
+# 모델 구조가 포함되었음
+# 매개변수로 현재 수행 중인 epoch(=step), 입력된 이미지 데이터(=x), 입력된 데이터의 라벨(=y), 가중치 dictionary(=param) 가 주어짐
+def loss(step, x, y, param):
+    inputs = tf.constant(x, name='inputs')
 
-    # Add bias
-    bias = tf.reshape(tf.nn.bias_add(convolve, bias), tf.shape(convolve))
+    # layer 1
+    l1_convolve = tf.nn.conv2d(input=inputs, filters=param['w1'], strides=4, padding='VALID', name='l1_convolve')
+    l1_bias = tf.reshape(tf.nn.bias_add(l1_convolve, param['b1']), tf.shape(l1_convolve), name='l1_bias')
+    l1_relu = tf.nn.relu(l1_bias, name='l1_relu')
+    l1_norm = tf.nn.lrn(input=l1_relu, depth_radius=5, alpha=10e-4, beta=0.75, bias=2.0, name='l1_norm')
+    l1_pool = tf.nn.max_pool(input=l1_norm, ksize=3, strides=2, padding='VALID', name='l1_pool')
 
-    # Apply activation
-    relu = tf.nn.relu(bias, name=name)
+    # layer 2
+    l2_convolve = tf.nn.conv2d(input=l1_pool, filters=param['w2'], strides=1, padding='SAME', name='l2_convolve')
+    l2_bias = tf.reshape(tf.nn.bias_add(l2_convolve, param['b2']), tf.shape(l2_convolve), name='l2_bias')
+    l2_relu = tf.nn.relu(l2_bias, name='l2_relu')
+    l2_norm = tf.nn.lrn(input=l2_relu, depth_radius=5, alpha=10e-4, beta=0.75, bias=2.0, name='l2_norm')
+    l2_pool = tf.nn.max_pool(input=l2_norm, ksize=3, strides=2, padding='VALID', name='l2_pool')
 
-    return relu
+    # layer 3
+    l3_convolve = tf.nn.conv2d(input=l2_pool, filters=param['w3'], strides=1, padding='SAME', name='l3_convolve')
+    l3_bias = tf.reshape(tf.nn.bias_add(l3_convolve, param['b3']), tf.shape(l3_convolve), name='l3_bias')
+    l3_relu = tf.nn.relu(l3_bias, name='l3_relu')
 
+    # layer 4
+    l4_convolve = tf.nn.conv2d(input=l3_relu, filters=param['w4'], strides=1, padding='SAME', name='l4_convolve')
+    l4_bias = tf.reshape(tf.nn.bias_add(l4_convolve, param['b4']), tf.shape(l4_convolve), name='l4_bias')
+    l4_relu = tf.nn.relu(l4_bias, name='l4_relu')
 
-def fc(input, weight, bias, name, activation='relu'):
-    """
-    Matrix input multiply with weights and add bias.
-    Then apply the activation function.
-    :param input: Placeholder for input tensor.
-    :param weight: Placeholder for input weight.
-    :param bias: Placeholder for input bias. If output is first Fully-connected layer, bias is parameters['b6']
-    :param name: The name of output.(e.g., 'fc1', 'fc2')
-    :param activation: Name of activation function.(e.g., 'relu', 'softmax' etc.)
-    :return: tf.tensor(applied activation)
-    """
-    foo = tf.nn.bias_add(tf.matmul(input, weight), bias)
+    # layer 5
+    l5_convolve = tf.nn.conv2d(input=l4_relu, filters=param['w5'], strides=1, padding='SAME', name='l5_convolve')
+    l5_bias = tf.reshape(tf.nn.bias_add(l5_convolve, param['b5']), tf.shape(l5_convolve), name='l5_bias')
+    l5_relu = tf.nn.relu(l5_bias, name='l5_relu')
+    l5_pool = tf.nn.max_pool(input=l5_relu, ksize=3, strides=2, padding='VALID', name='l5_pool')
 
-    if activation == 'relu':
-        act = tf.nn.relu(foo, name=name)
-    else:
-        act = tf.nn.softmax(foo, name=name, axis=1)
+    # layer 6
+    l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(param['w6'])[0]], name='l6_flattened')
+    l6_fc = tf.nn.bias_add(tf.matmul(l6_flattened, param['w6']), param['b6'], name='l6_fc')
+    l6_relu = tf.nn.relu(l6_fc, name='l6_relu')
+    l6_dropout = tf.nn.dropout(l6_relu, rate=0.5, name='l6_dropout')
 
-    return act
+    # layer 7
+    l7_fc = tf.nn.bias_add(tf.matmul(l6_dropout, param['w7']), param['b7'], name='l7_fc')
+    l7_relu = tf.nn.relu(l7_fc, name='l7_relu')
+    l7_dropout = tf.nn.dropout(l7_relu, rate=0.5, name='l7_dropout')
 
+    # layer 8
+    logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
+    # 출력된 logits는 라벨을 예측한 형태가 아닌 각 클래스에 대한 값이 존재하는 형태, shape[데이터 개수, 클래스 개수]
+    # argmax를 적용함으로써, 단일 라벨을 출력하는 형태로 변경, y(ground_truth) 와 비교해 loss 계산
+    predict = tf.argmax(logits, 1).numpy()
 
-def max_pool(input, name, ksize=3, strides=2, padding='VALID'):
-    """
-    Apply the max_pooling. All max_pooling layer have same ksize and strides.
-    :param input: (Tensor)Placeholder for input tensor.
-    :param name: (String)Name for return layer.
-    :param ksize: (Integer)Kernel size of the pooling layer.
-    :param strides: (Integer)Strides of the pooling layer.
-    :param padding: (String)Padding of the pooling layer. 'VALID' or 'SAME'
-    :return: Applied max-pooling layer that used input parameters.
-    """
-    return tf.nn.max_pool(input, ksize=ksize, strides=strides, padding=padding, name=name)
+    # 멀티 라벨로 모델 평가 시에 수렴되지 않는 문제 발생(추가적인 연구 필요, 아마 데이터의 클래스 개수가 너무 적어 그런것으로 예상)
+    # 단일 라벨로 평가(sparse_softmax_cross_entropy_with_logits)
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
+    # loss = tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=predict)
+    loss = tf.reduce_mean(loss)
+    target = y
 
+    accuracy = np.sum(predict == target) / len(target)
 
-def lrn(input, name, radius=5, alpha=10e-4, beta=0.75, bias=2.0):
-    """
-    All local_response_normalization layers have same hyper-parameters.
-    So just input input and name.
-    :param input: Placeholder for input tensor.
-    :param name: Name for return.
-    :param radius: Depth that use in normalization function.
-    :param alpha: Hyperparameter of the lrn function.
-    :param beta: Hyperparameter of the lrn function.
-    :param bias: Bias of the lrn function.
-    :return: LRN layer that applied input parameters.
-    """
-    return tf.nn.local_response_normalization(input=input, depth_radius=radius,
-                                              alpha=alpha, beta=beta, bias=bias, name=name)
+    print('epoch {}:\tloss = {}\taccuracy = {}'.format(step, loss.numpy(), accuracy))
 
-
-def dropout(input, keep_prob=0.5):
-    """
-    All dropout layers have same rate. So give them default value.
-    :param input: Placeholder for input tensor.
-    :param keep_prob: Probability of the dropout,
-    :return: TF's dropout method that apply the input parameters.
-    """
-    return tf.nn.dropout(input, rate=keep_prob)
-
+    return loss
 ########################################################################################################################
 
 
-# Initialize variables
-# weight init with Gaussian distribution(mean=0.0 & standard_deviation=0.01)
-# bias init 1/3/8 = 0, 2/4/5/6/7 = 1
-def init_grads(parameters):
-    """
-    Initialize the parameters of model as a python dictionary.
-        - keys: 'dw1', 'db1', ... , 'db8'
-        - values: Numpy arrays.
-    :param parameters: Python dictionary that contain the parameters.
-    :return: Initialized python dictionary.
-    """
-    num = len(parameters)
-    grads = {}
+########################################################################################################################
+# 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
+# 적용 방법의 추가적인 연구가 필요.
+# lr_schedule = tf.optimizers.schedules.De(
+#     initial_learning_rate= 0.001,
+#     decay_steps=
+# )
 
-    # Initialize
-    for i in range(num):
-        grads['dw'+str(i+1)] = np.zeros(parameters['w'+str(i+1)].shape)
-        grads['db' + str(i + 1)] = np.zeros(parameters['b' + str(i + 1)].shape)
+# 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
+# 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
+# learning_rate를 0.01(follow 논문)으로 설정 시, loss가 발산하는 문제 발생, 따라서 0.001로 설정
+# optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=0.5, name='optimizer')
+optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
+# optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, name='optimizer')
 
-    return grads
-
+# 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 미리 초기화를 수행해줌
 parameters = {
     'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
-    'b1': tf.Variable(tf.zeros(shape=[96], name='b1'), trainable=True),
+    'b1': tf.Variable(tf.zeros(shape=[96]), trainable=True, name='b1'),
 
     'w2': tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2', trainable=True),
-    'b2': tf.Variable(tf.ones(shape=[256], name='b2'), trainable=True),
+    'b2': tf.Variable(tf.ones(shape=[256]), trainable=True, name='b2'),
 
     'w3': tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3', trainable=True),
-    'b3': tf.Variable(tf.zeros(shape=[384], name='b3'), trainable=True),
+    'b3': tf.Variable(tf.zeros(shape=[384]), trainable=True, name='b3'),
 
     'w4': tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4', trainable=True),
-    'b4': tf.Variable(tf.ones(shape=[384], name='b4'), trainable=True),
+    'b4': tf.Variable(tf.ones(shape=[384]), trainable=True, name='b4'),
 
     'w5': tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5', trainable=True),
-    'b5': tf.Variable(tf.ones(shape=[256], name='b5'), trainable=True),
+    'b5': tf.Variable(tf.ones(shape=[256]), trainable=True, name='b5'),
 
     'w6': tf.Variable(tf.random.normal(shape=[6*6*256, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6', trainable=True),
-    'b6': tf.Variable(tf.ones(shape=[4096], name='b6'), trainable=True),
+    'b6': tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b6'),
 
     'w7': tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True),
-    'b7': tf.Variable(tf.ones(shape=[4096], name='b7'), trainable=True),
+    'b7': tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b7'),
 
     'w8': tf.Variable(tf.random.normal(shape=[4096, NUM_CLASSES], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
-    'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES], name='b8'), trainable=True),
+    'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES]), trainable=True, name='b8'),
 }
 
-grads = init_grads(parameters)
+# 사전에 정의한 load_dataset 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
+train_X, train_Y, valid_X, valid_Y, test_X, test_Y = load_dataset(TRAIN_IMG_DIR)
 
-########################################################################################################################
-# Make CNN model
-class Alexnet(object):
-
-    def __init__(self, x, weights_path='DEFAULT'):
-        """
-        Initialize the model's variable
-        :param X: Placeholder for the input tensor.
-        :param weights_path: The path of pretrained weight file.
-        """
-        # Parse input arguments into class variables.
-        self.x = x
-        self.num_classes = NUM_CLASSES
-
-        if weights_path == 'DEFAULT':
-            self.weights_path = 'alexnet_pretrained.npy'
-        else:
-            self.weights_path = weights_path
-
-        # Call the create function to build AlexNet
-        self.create()
-
-    def create(self):
-        # Layer 1 : Convolution -> LRN -> Max pooling
-        l1_conv = conv(input=self.x, weight=parameters['w1'], bias=parameters['b1'], strides=[1, 4, 4, 1], name='l1_conv')
-        l1_norm = lrn(input=l1_conv, name='l1_norm')
-        l1_pool = max_pool(input=l1_norm, name='l1_pool')
-
-        # Layer 2 : Convolution -> LRN -> Max pooling
-        l2_conv = conv(input=l1_pool, weight=parameters['w2'], bias=parameters['b2'], strides=[1, 1, 1, 1], name='l2_conv', padding='SAME')
-        l2_norm = lrn(input=l2_conv, name='l2_norm')
-        l2_pool = max_pool(input=l2_norm, name='l2_pool')
-
-        # Layer 3 : Convolution
-        l3_conv = conv(input=l2_pool, weight=parameters['w3'], bias=parameters['b3'], strides=[1, 1, 1, 1], name='l3_conv', padding='SAME')
-
-        # Layer 4 : Convolution
-        l4_conv = conv(input=l3_conv, weight=parameters['w4'], bias=parameters['b4'], strides=[1, 1, 1, 1], name='l4_conv', padding='SAME')
-
-        # Layer 5 : Convolution -> Max pooling
-        l5_conv = conv(input=l4_conv, weight=parameters['w5'], bias=parameters['b5'], strides=[1, 1, 1, 1], name='l5_conv', padding='SAME')
-        l5_pool = max_pool(input=l5_conv, name='l5_pool')
-
-        # Layer 6 : Flatten -> Fully connected -> Dropout
-        l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(parameters['w6'])[0]])
-        l6_fc = fc(input=l6_flattened, weight=parameters['w6'], bias=parameters['b6'], name='l6_fc')
-        l6_dropout = dropout(input=l6_fc)
-
-        # Layer 7 : Fully connected -> Dropout
-        l7_fc = fc(input=l6_dropout, weight=parameters['w7'], bias=parameters['b7'], name='l7_fc')
-        l7_dropout = dropout(input=l7_fc)
-
-        # Layer 8 : Fully connected(with softmax)   # Output layer
-        l8_fc = fc(input=l7_dropout, weight=parameters['w8'], bias=parameters['b8'], name='l8_fc', activation='softmax')
-
-        return l8_fc
-
-    def load_weights(self):
-        """
-
-        :return:
-        """
-########################################################################################################################
-
-
-# @todo image down sampling - 짧은 면 256픽셀 + 긴면 같은 비율로 줄임, 긴 면의 가운데 256픽셀 자름 -> 256x256 이미지
-
-
-# @todo image preprocessing - 각 픽셀에서 이미지의 픽셀 값 평균을 빼줌(픽셀 평균을 0으로 만듦)
-
-
-# @todo Data augmentation - crop, RGB(pca)
-
-
-
-
-
-# model = alexnet(X, parameters)
-# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model, Y))
-# optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, momentum=MOMENTUM, weight_decay=LR_DECAY).minimize(cost)
-# prediction = tf.argmax(model, 1)
-
-
-########################################################################################################################
-# @todo Do training
-# Define loss function
-def cost(target_y, predicted_y):
-    return tf.reduce_mean(tf.square(target_y - predicted_y))
-
-tf.optimizers.SGDW
-
-# for batch_x in enumerate(train_X):
-#     print(batch_x)
-#     print(type(np.asarray(batch_x)))
-#     batch_x = np.asarray(batch_x)
-#     print(batch_x.shape)
-
-
-# Define training loop
-def train(model, input_x, input_y, param):
-    print('start train')
-    batch_index = 1
-    for batch_x, batch_y in zip(list(input_x.as_numpy_iterator()), list(input_y.as_numpy_iterator())):
-
-        with tf.GradientTape() as tape:
-            tape.watch([param['w1'], param['b1'], param['w2'], param['b2'],
-                       param['w3'], param['b3'], param['w4'], param['b4'],
-                       param['w5'], param['b5'], param['w6'], param['b6'],
-                       param['w7'], param['b7'], param['w8'], param['b8']])
-            # Trainable variables are tracked by GradientTape
-            current_loss = cost(batch_y, tf.argmax(model(batch_x, param), axis=1))
-            print('current_loss {}'.format(current_loss))
-
-        grad = tape.gradient(current_loss, [param['w1'], param['b1'], param['w2'], param['b2'],
-                                            param['w3'], param['b3'], param['w4'], param['b4'],
-                                            param['w5'], param['b5'], param['w6'], param['b6'],
-                                            param['w7'], param['b7'], param['w8'], param['b8']])
-        print('Batch: {} Loss: {}'.format(batch_index, current_loss))
-
-        for p in parameters.keys():
-            param[p] = param[p] - param[p]*LR_INIT
-
-        batch_index += 1
-    return param, current_loss
-
-
+# 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
 for epoch in range(NUM_EPOCHS):
-    print('start epoch')
-    (dw1, db1, dw2, db2, dw3, db3, dw4, db4, dw5, db5, dw6, db6, dw7, db7, dw8, db8), loss = train(Alexnet, train_X, train_Y, parameters)
+    # 몇 번째 batch 수행 중인지 확인 위한 변수
+    foo = 1
+    # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
+    # 즉 16번 가중치 업데이트가 이루어짐
+    for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
+        print('batch {}'.format(foo))
+        foo += 1
+        # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
+        # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
+        optimizer.minimize(lambda: loss(epoch, batch_X, batch_Y, parameters), var_list=parameters)
 
-    print('Epoch: {} Loss: {}'.format(epoch, loss))
-
-# Launch the session
-# with tf.Session() as sess:
-    # tf.initialize_all_variables().run()
-    # sess.run(tf.global_variables_initializer())
-#
-#     for epoch in range(NUM_EPOCHS):
-#         sess.run(optimizer, feed_dict={X: train_ds, Y: labels})
-#
-#     test_indices = np.arange(len())
-#     np.random.shuffle(test_indices)
-#     test_indices = test_indices[0:test_size]
-#     print(i, np.mean(np.argmax(teY[test_indices], axis=1) ==
-#                      sess.run(predict_op, feed_dict={X: teX[test_indices],
-#                                                      Y: teY[test_indices]})))
-########################################################################################################################
-
-
-# @todo Do validation check & model save
+# Save the updated parameters(weights, biases)
+np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)

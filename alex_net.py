@@ -13,7 +13,7 @@ import random
 
 RANDOM_SEED = 602
 # random.seed(RANDOM_SEED)
-tf.random.set_seed(RANDOM_SEED)
+# tf.random.set_seed(RANDOM_SEED)
 
 # Hyper-parameters
 NUM_EPOCHS = 90
@@ -72,8 +72,6 @@ def load_dataset(path):
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
     foo = list(zip(images, labels))
     random.Random(RANDOM_SEED).shuffle(foo)
-    # random.Random(RANDOM_SEED).shuffle(images)
-    # random.Random(RANDOM_SEED).shuffle(labels)
     images, labels = zip(*foo)
 
     # Split train/valid/test, total data size = 5,000
@@ -88,10 +86,35 @@ def load_dataset(path):
 
     # Build Tf dataset
     train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-    valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-    test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
+    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
+    # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
 
     return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
+
+
+def fancy_pca(img, alpha_std=0.1):
+    orig_img = img.astype(float).copy()
+    # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
+    img_centered = orig_img - IMAGENET_MEAN[:, None]
+    # 해당 이미지의 공분산 행렬 구함
+    img_cov = np.cov(img_centered, rowvar=False)
+    # 고유벡터, 고유값 구함
+    eig_vals, eig_vecs = np.linalg.eigh(img_cov)
+    sort_perm = eig_vals[::-1].argsort()
+    eig_vals[::-1].sort()
+    eig_vecs = eig_vecs[:, sort_perm]
+    # 고유벡터 세개를 쌓아서 3x3 행렬로 만듦
+    m1 = np.column_stack((eig_vecs))
+    m2 = np.zeros((3, 1))
+    alpha = np.random.normal(0, alpha_std)
+    m2[:, 0] = alpha * eig_vals[:]
+    add_vect = np.matrix(m1) * np.matrix(m2)
+
+    for idx in range(3):  # RGB
+        orig_img[..., idx] += add_vect[idx]
+    orig_img = np.clip(orig_img, 0.0, 255.0)
+    orig_img = orig_img.astype(np.uint8)
+    return orig_img
 ########################################################################################################################
 
 

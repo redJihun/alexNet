@@ -4,7 +4,7 @@ import time
 
 # Deep-learning framework
 import tensorflow as tf
-import tensorflow_datasets as tfds
+# import tensorflow_datasets as tfds
 import tensorflow_addons as tfa
 
 # Manipulate
@@ -40,7 +40,7 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 # @todo Load dataset
 # After init variables, append imagefile's path and label(in number, origin is name of sub-directory).
 # Set the path of root dir, and use os.walk(root_dir) for append all images in sub-dir.
-def load_dataset(path):
+def load_imagepaths(path):
     imagepaths, labels = list(), list()
     label = 0
     classes = sorted(os.walk(path).__next__()[1])
@@ -54,21 +54,72 @@ def load_dataset(path):
         # next directory
         label += 1
 
-    # Read images from disk
-    # Resize & Crop
+    return imagepaths, labels
+
+
+# 256x256으로 이미지 다운샘플링
+def resize_images(imgpaths):
+    # Read images from disk & resize
     print('start resizing image')
     images = list()
-    for img in imagepaths:
+    for img in imgpaths:
         img = tf.io.read_file(img)
         img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize(img, size=(227, 227))
-        # img = tf.image.crop_and_resize(tf.reshape(img, shape=(-1,256,256,3)), crop_size=(227, 227), boxes=[5, 4], box_indices=[5, ])
+        img = tf.image.resize(img, size=(256, 256))
         images.append(img)
     print('end resizing')
-    # images = tf.data.Dataset.from_tensors(tf.convert_to_tensor(images, dtype=tf.float32))
-    # img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900., 4.], box_indices=[900, ])
-    # image = tf.image.crop_and_resize(image, crop_size=(227,227), boxes=[900, 4])
+    return images
 
+
+# Image cropping
+def crop_image(image):
+    print('Start cropping')
+    cropped_image = tf.image.crop_and_resize(tf.reshape(image, shape=(-1,256,256,3)), crop_size=(227, 227), boxes=[5, 4], box_indices=[5, ])
+    print('End cropping')
+    return cropped_image
+
+
+# horizontal reflection
+def flip_image(image):
+    print('Start flipping')
+    flipped_image = tf.image.flip_left_right(image)
+    print('End flipping')
+    return flipped_image
+
+# RGB jittering
+def fancy_pca(image, alpha_std=0.1):
+    print('Start Jittering')
+    orig_img = image.astype(float).copy()
+    # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
+    img_centered = orig_img - IMAGENET_MEAN[:, None]
+    # 해당 이미지의 공분산 행렬 구함
+    img_cov = np.cov(img_centered, rowvar=False)
+    # 고유벡터, 고유값 구함
+    eig_vals, eig_vecs = np.linalg.eigh(img_cov)
+    sort_perm = eig_vals[::-1].argsort()
+    eig_vals[::-1].sort()
+    eig_vecs = eig_vecs[:, sort_perm]
+    # 고유벡터 세개를 쌓아서 3x3 행렬로 만듦
+    m1 = np.column_stack((eig_vecs))
+    m2 = np.zeros((3, 1))
+    # 랜덤값과 고유값을 곱함
+    alpha = np.random.normal(0, alpha_std)
+    m2[:, 0] = alpha * eig_vals[:]
+    # 3x3 고유벡터 행렬과 3x1 랜덤값*고유값 행렬을 곱해서 3x1 행렬을 얻음(RGB 채널에 가감해줄 값)
+    add_vect = np.matrix(m1) * np.matrix(m2)
+    # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
+    for idx in range(3):
+        pca_img = orig_img[..., idx] + add_vect[idx]
+    # 0~255(rgb픽셀값) 범위로 값 재설정
+    pca_img = np.clip(pca_img, 0.0, 255.0)
+    # 색상값 저장시 주로 unsigned int 사용
+    pca_img = pca_img.astype(np.uint8)
+    print('End jittering')
+    return pca_img
+
+
+def make_dataset(images, labels):
+    print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
     foo = list(zip(images, labels))
     random.Random(RANDOM_SEED).shuffle(foo)
@@ -88,33 +139,8 @@ def load_dataset(path):
     train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
     # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
     # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
-
+    print('End making dataset')
     return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
-
-
-def fancy_pca(img, alpha_std=0.1):
-    orig_img = img.astype(float).copy()
-    # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
-    img_centered = orig_img - IMAGENET_MEAN[:, None]
-    # 해당 이미지의 공분산 행렬 구함
-    img_cov = np.cov(img_centered, rowvar=False)
-    # 고유벡터, 고유값 구함
-    eig_vals, eig_vecs = np.linalg.eigh(img_cov)
-    sort_perm = eig_vals[::-1].argsort()
-    eig_vals[::-1].sort()
-    eig_vecs = eig_vecs[:, sort_perm]
-    # 고유벡터 세개를 쌓아서 3x3 행렬로 만듦
-    m1 = np.column_stack((eig_vecs))
-    m2 = np.zeros((3, 1))
-    alpha = np.random.normal(0, alpha_std)
-    m2[:, 0] = alpha * eig_vals[:]
-    add_vect = np.matrix(m1) * np.matrix(m2)
-
-    for idx in range(3):  # RGB
-        orig_img[..., idx] += add_vect[idx]
-    orig_img = np.clip(orig_img, 0.0, 255.0)
-    orig_img = orig_img.astype(np.uint8)
-    return orig_img
 ########################################################################################################################
 
 
@@ -188,62 +214,73 @@ def loss(step, x, y, param):
 
 
 ########################################################################################################################
-# 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
-# 적용 방법의 추가적인 연구가 필요.
-# lr_schedule = tf.optimizers.schedules.De(
-#     initial_learning_rate= 0.001,
-#     decay_steps=
-# )
+# 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화를 수행하는 함수
+def init_params():
+    parameters = {
+        'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
+        'b1': tf.Variable(tf.zeros(shape=[96]), trainable=True, name='b1'),
 
-# 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
-# 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
-# learning_rate를 0.01(follow 논문)으로 설정 시, loss가 발산하는 문제 발생, 따라서 0.001로 설정
-# optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=0.5, name='optimizer')
-optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
-# optimizer = tf.optimizers.SGD(learning_rate=LR_INIT, name='optimizer')
+        'w2': tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2', trainable=True),
+        'b2': tf.Variable(tf.ones(shape=[256]), trainable=True, name='b2'),
 
-# 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 미리 초기화를 수행해줌
-parameters = {
-    'w1': tf.Variable(tf.random.normal(shape=[11, 11, 3, 96], mean=0.0, stddev=0.01, dtype=tf.float32), name='w1', trainable=True),
-    'b1': tf.Variable(tf.zeros(shape=[96]), trainable=True, name='b1'),
+        'w3': tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3', trainable=True),
+        'b3': tf.Variable(tf.zeros(shape=[384]), trainable=True, name='b3'),
 
-    'w2': tf.Variable(tf.random.normal(shape=[5, 5, 96, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w2', trainable=True),
-    'b2': tf.Variable(tf.ones(shape=[256]), trainable=True, name='b2'),
+        'w4': tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4', trainable=True),
+        'b4': tf.Variable(tf.ones(shape=[384]), trainable=True, name='b4'),
 
-    'w3': tf.Variable(tf.random.normal(shape=[3, 3, 256, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w3', trainable=True),
-    'b3': tf.Variable(tf.zeros(shape=[384]), trainable=True, name='b3'),
+        'w5': tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5', trainable=True),
+        'b5': tf.Variable(tf.ones(shape=[256]), trainable=True, name='b5'),
 
-    'w4': tf.Variable(tf.random.normal(shape=[3, 3, 384, 384], mean=0.0, stddev=0.01, dtype=tf.float32), name='w4', trainable=True),
-    'b4': tf.Variable(tf.ones(shape=[384]), trainable=True, name='b4'),
+        'w6': tf.Variable(tf.random.normal(shape=[6*6*256, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6', trainable=True),
+        'b6': tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b6'),
 
-    'w5': tf.Variable(tf.random.normal(shape=[3, 3, 384, 256], mean=0.0, stddev=0.01, dtype=tf.float32), name='w5', trainable=True),
-    'b5': tf.Variable(tf.ones(shape=[256]), trainable=True, name='b5'),
+        'w7': tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True),
+        'b7': tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b7'),
 
-    'w6': tf.Variable(tf.random.normal(shape=[6*6*256, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w6', trainable=True),
-    'b6': tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b6'),
+        'w8': tf.Variable(tf.random.normal(shape=[4096, NUM_CLASSES], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
+        'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES]), trainable=True, name='b8'),
+    }
+    return parameters
 
-    'w7': tf.Variable(tf.random.normal(shape=[4096, 4096], mean=0.0, stddev=0.01, dtype=tf.float32), name='w7', trainable=True),
-    'b7': tf.Variable(tf.ones(shape=[4096]), trainable=True, name='b7'),
 
-    'w8': tf.Variable(tf.random.normal(shape=[4096, NUM_CLASSES], mean=0.0, stddev=0.01, dtype=tf.float32), name='w8', trainable=True),
-    'b8': tf.Variable(tf.zeros(shape=[NUM_CLASSES]), trainable=True, name='b8'),
-}
+########################################################################################################################
 
-# 사전에 정의한 load_dataset 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
-train_X, train_Y, valid_X, valid_Y, test_X, test_Y = load_dataset(TRAIN_IMG_DIR)
 
-# 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
-for epoch in range(NUM_EPOCHS):
-    # 몇 번째 batch 수행 중인지 확인 위한 변수
-    foo = 1
-    # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
-    # 즉 16번 가중치 업데이트가 이루어짐
-    for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
-        print('batch {}'.format(foo))
-        foo += 1
-        # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
-        # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
-        optimizer.minimize(lambda: loss(epoch, batch_X, batch_Y, parameters), var_list=parameters)
+########################################################################################################################
+def __main__():
 
-# Save the updated parameters(weights, biases)
-np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
+    # 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
+    # 적용 방법의 추가적인 연구가 필요.
+    # lr_schedule = tf.optimizers.schedules.De(
+    #     initial_learning_rate= 0.001,
+    #     decay_steps=
+    # )
+
+    # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
+    # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
+    # learning_rate를 0.01(follow 논문)으로 설정 시, loss가 발산하는 문제 발생, 따라서 0.001로 설정
+    # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=0.5, name='optimizer')
+    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
+
+    # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
+    parameters = init_params()
+
+    # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
+    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = load_imagepaths(TRAIN_IMG_DIR)
+
+    # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
+    for epoch in range(NUM_EPOCHS):
+        # 몇 번째 batch 수행 중인지 확인 위한 변수
+        foo = 1
+        # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
+        # 즉, 1epoch에 16번 가중치 업데이트가 이루어짐
+        for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
+            print('batch {}'.format(foo))
+            foo += 1
+            # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
+            # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
+            optimizer.minimize(lambda: loss(epoch, batch_X, batch_Y, parameters), var_list=parameters)
+
+    # Save the updated parameters(weights, biases)
+    np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)

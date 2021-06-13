@@ -20,8 +20,7 @@ NUM_EPOCHS = 90
 BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
-LR_INIT = 0.01            # == weight_init
-IMAGE_DIM = 227
+LR_INIT = 0.01
 NUM_CLASSES = 5
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
@@ -37,7 +36,8 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
 ########################################################################################################################
-# @todo Load dataset
+# 이미지 로드 및 전처리 + 데이터 증강 함수들
+
 # After init variables, append imagefile's path and label(in number, origin is name of sub-directory).
 # Set the path of root dir, and use os.walk(root_dir) for append all images in sub-dir.
 def load_imagepaths(path):
@@ -72,19 +72,45 @@ def resize_images(imgpaths):
 
 
 # Image cropping
-def crop_image(image):
+def crop_image(images, labels):
     print('Start cropping')
-    cropped_image = tf.image.crop_and_resize(tf.reshape(image, shape=(-1,256,256,3)), crop_size=(227, 227), boxes=[5, 4], box_indices=[5, ])
+    cropped_images = images.copy()
+    cropped_labels = labels.copy()
+    for img,label in zip(images,labels):
+        # left-top
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
+        # right-top
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
+        # center
+        cropped_img = tf.image.crop_to_bounding_box(img, (np.shape(img)[0]-227)/2, (np.shape(img)[0]-227)/2, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
+        # left-bottom
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
+        # right-bottom
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, np.shape(img)[0]-227, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
     print('End cropping')
-    return cropped_image
+    return cropped_images, cropped_labels
 
 
 # horizontal reflection
-def flip_image(image):
+def flip_image(images, labels):
     print('Start flipping')
-    flipped_image = tf.image.flip_left_right(image)
+    flipped_images,flipped_labels = images.copy(),labels.copy()
+    for img,lbl in zip(images,labels):
+        flipped_image = tf.image.flip_left_right(img)
+        flipped_images.append(flipped_image)
+        flipped_labels.append(lbl)
     print('End flipping')
-    return flipped_image
+    return flipped_images, flipped_labels
 
 # RGB jittering
 def fancy_pca(image, alpha_std=0.1):
@@ -118,6 +144,7 @@ def fancy_pca(image, alpha_std=0.1):
     return pca_img
 
 
+# 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
 def make_dataset(images, labels):
     print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
@@ -267,7 +294,9 @@ def __main__():
     parameters = init_params()
 
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
-    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = load_imagepaths(TRAIN_IMG_DIR)
+    filepaths, labels = load_imagepaths(TRAIN_IMG_DIR)
+    images = resize_images(filepaths)
+    train_X, train_Y, valid_X, valid_Y, test_X, test_Y =
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
     for epoch in range(NUM_EPOCHS):

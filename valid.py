@@ -175,9 +175,10 @@ def make_dataset(images, labels):
 ########################################################################################################################
 
 
-def loss(name, x, y, param):
-    inputs = tf.constant(x, name='inputs')
-
+@tf.function
+def model(x, param):
+    # inputs = tf.constant(x, name='inputs')
+    inputs = x
     # layer 1
     l1_convolve = tf.nn.conv2d(input=inputs, filters=param['w1'], strides=4, padding='VALID', name='l1_convolve')
     l1_bias = tf.reshape(tf.nn.bias_add(l1_convolve, param['b1']), tf.shape(l1_convolve), name='l1_bias')
@@ -221,6 +222,11 @@ def loss(name, x, y, param):
 
     # layer 8
     logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
+
+    return logits
+
+
+def loss(name, y, logits):
     predict = tf.argmax(logits, 1).numpy()
 
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
@@ -255,11 +261,18 @@ for model in model_paths:
     loaded_param = np.load(model, allow_pickle=True)
     loaded_param = {key: loaded_param[key].item() for key in loaded_param}
     print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
-    loss = loss(model, valid_X, valid_Y, param=loaded_param['arr_0'])
+    print(type(model))
+    print(type(valid_X))
+    print(type(valid_Y))
+    print(type(loaded_param['arr_0']))
+    loss = loss(name=model,
+                y=valid_Y,
+                logits=model(x=valid_X,
+                             param=loaded_param['arr_0']))
     # 저장된 최소 loss보다 작으면 best model 업데이트
     if loss < min_loss:
         min_loss = loss
         best_model = loaded_param.copy()
-    loaded_param = dict()
+    del loaded_param
 # 최종으로 업데이트된 best model을 저장
 np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)

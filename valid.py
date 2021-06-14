@@ -136,23 +136,26 @@ def loss(name, x, y, param):
 
 
 train_X, train_Y, valid_X, valid_Y, test_X, test_Y = load_dataset(TRAIN_IMG_DIR)
-param_paths = list()
+
+# Trained model loading
+model_paths = list()
 walk = os.walk(CHECKPOINT_DIR).__next__()
 for file in walk[2]:
-    param_paths.append(os.path.join(CHECKPOINT_DIR, file))
+    model_paths.append(os.path.join(CHECKPOINT_DIR, file))
 
+# Validation step 에서 최소 loss 기록 모델을 best model로 선정
 min_loss = 99999999
 best_model = dict()
-for model in param_paths:
+# 저장된 trained 모델(=trained parameters) 들을 불러온 후, valid set 에서 loss 계산
+for model in model_paths:
     loaded_param = np.load(model, allow_pickle=True)
     loaded_param = {key: loaded_param[key].item() for key in loaded_param}
     print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
-    loss = loss(model,
-                valid_X,
-                valid_Y,
-                param=loaded_param['arr_0'])
+    loss = loss(model, valid_X, valid_Y, param=loaded_param['arr_0'])
+    # 저장된 최소 loss보다 작으면 best model 업데이트
     if loss < min_loss:
         min_loss = loss
-        best_model = loaded_param
-
+        best_model = loaded_param.copy()
+    loaded_param = dict()
+# 최종으로 업데이트된 best model을 저장
 np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)

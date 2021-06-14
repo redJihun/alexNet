@@ -248,7 +248,6 @@ def valid(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
     walk = os.walk(ckpts_path).__next__()
     for file in walk[2]:
         model_paths.append(os.path.join(ckpts_path, file))
-
     # Validation step 에서 최소 loss 기록 모델을 best model로 선정
     min_loss = 99999999
     best_model = dict()
@@ -257,19 +256,14 @@ def valid(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         loaded_param = np.load(model, allow_pickle=True)
         loaded_param = {key: loaded_param[key].item() for key in loaded_param}
         print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
-        # print(type(model))
-        # print(type(valid_X))
-        # print(type(valid_Y))
-        # print(type(loaded_param['arr_0']))
-        current_loss = loss(name=model,
-                            y=valid_Y,
-                            x=valid_X, param=loaded_param['arr_0'])
+        current_loss = loss(name=model, x=valid_X, y=valid_Y, param=loaded_param['arr_0'])
         # 저장된 최소 loss보다 작으면 best model 업데이트
         if current_loss < min_loss:
             min_loss = current_loss
-            best_model = loaded_param.copy()
+            best_model = loaded_param['arr_0'].copy()
     # 최종으로 업데이트된 best model을 저장
     np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
+    print("\nBest model : loss={}\n{}".format(min_loss, best_model['b8']))
 
 
 valid()

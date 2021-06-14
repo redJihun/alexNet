@@ -176,7 +176,7 @@ def make_dataset(images, labels):
 
 
 ########################################################################################################################
-# 원 라벨 y와 예측된 라벨을 비교하여 계산된 loss를 리턴하는 함수
+# 원 라벨 y와 예측된 라벨을 비교하여 계산된 loss, accuracy 리턴하는 함수
 # 모델 구조가 포함되었음
 # 매개변수로 현재 수행 중인 epoch(=step), 입력된 이미지 데이터(=x), 입력된 데이터의 라벨(=y), 가중치 dictionary(=param) 가 주어짐
 def loss(step, x, y, param):
@@ -238,9 +238,9 @@ def loss(step, x, y, param):
 
     accuracy = np.sum(predict == target) / len(target)
 
-    print('loss = {}\taccuracy = {}'.format(loss.numpy(), accuracy))
+    print('batch {} : loss = {}\taccuracy = {}'.format(step, loss.numpy(), accuracy))
 
-    return loss, accuracy
+    return loss
 ########################################################################################################################
 
 
@@ -287,39 +287,43 @@ def init_params():
 #     initial_learning_rate= 0.001,
 #     decay_steps=
 # )
-# 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
-# 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
-# learning_rate를 0.01(follow 논문)으로 설정 시, loss가 발산하는 문제 발생, 따라서 0.001로 설정
-# optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=0.5, name='optimizer')
-optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
 
-# 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
-parameters = init_params()
 
-# 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
-filepaths, labels = load_imagepaths(TRAIN_IMG_DIR)
-images = resize_images(filepaths)
-# images,labels = fancy_pca(images,labels)
-# images,labels = flip_image(images,labels)
-images,labels = crop_image(images,labels)
-train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
+def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+    # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
+    # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
+    # learning_rate를 0.01(follow 논문)으로 설정 시, loss가 발산하는 문제 발생, 따라서 0.001로 설정
+    # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=0.5, name='optimizer')
+    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
 
-# 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
-for epoch in range(NUM_EPOCHS):
-    # 몇 번째 batch 수행 중인지 확인 위한 변수
-    foo = 1
-    # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
-    # 즉, 1epoch에 16번 가중치 업데이트가 이루어짐
-    losses, accs = list(), list()
-    for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
-        print('batch {}'.format(foo))
-        foo += 1
-        # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
-        # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
-        loss, acc = loss(epoch, batch_X, batch_Y, parameters)
-        optimizer.minimize(loss, var_list=parameters)
-        losses.append(loss)
-        accs.append(acc)
-    print('epoch {} :\tmean_loss = {}\taccuracy = {}'.format(epoch, losses.mean(), accs.mean()))
-# Save the updated parameters(weights, biases)
-np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
+    # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
+    parameters = init_params()
+
+    # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
+    filepaths, labels = load_imagepaths(imgs_path)
+    images = resize_images(filepaths)
+    # images,labels = fancy_pca(images,labels)
+    # images,labels = flip_image(images,labels)
+    images,labels = crop_image(images,labels)
+    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
+
+    # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
+    for epoch in range(epochs):
+        print('epoch {}'.format(epoch+1))
+        # 몇 번째 batch 수행 중인지 확인 위한 변수
+        foo = 1
+        # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
+        # 즉, 1epoch에 16번 가중치 업데이트가 이루어짐
+        losses, accs = list(), list()
+        for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
+            # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
+            # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
+            # current_loss = loss(epoch, batch_X, batch_Y, parameters)
+            optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters), var_list=parameters)
+            foo += 1
+            # accs.append(current_acc)
+    # Save the updated parameters(weights, biases)
+    np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
+
+
+train()

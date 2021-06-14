@@ -1,17 +1,26 @@
+# For files
 import os
+import time
+
+# Deep-learning framework
 import tensorflow as tf
+# import tensorflow_datasets as tfds
+import tensorflow_addons as tfa
+
+# Manipulate
 import numpy as np
 import random
 
 RANDOM_SEED = 602
 # random.seed(RANDOM_SEED)
-tf.random.set_seed(RANDOM_SEED)
+# tf.random.set_seed(RANDOM_SEED)
 
 # Hyper-parameters
+NUM_EPOCHS = 90
+BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
-LR_INIT = 0.01            # == weight_init
-IMAGE_DIM = 227
+LR_INIT = 0.01
 NUM_CLASSES = 5
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
@@ -22,8 +31,16 @@ OUTPUT_ROOT_DIR = './output'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
 CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
 
+# Make checkpoint path directory
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
-def load_dataset(path):
+
+########################################################################################################################
+# 이미지 로드 및 전처리 + 데이터 증강 함수들
+
+# After init variables, append imagefile's path and label(in number, origin is name of sub-directory).
+# Set the path of root dir, and use os.walk(root_dir) for append all images in sub-dir.
+def load_imagepaths(path):
     imagepaths, labels = list(), list()
     label = 0
     classes = sorted(os.walk(path).__next__()[1])
@@ -37,26 +54,106 @@ def load_dataset(path):
         # next directory
         label += 1
 
-    # Read images from disk
-    # Resize & Crop
+    return imagepaths, labels
+
+
+# 256x256으로 이미지 다운샘플링
+def resize_images(imgpaths):
+    # Read images from disk & resize
     print('start resizing image')
     images = list()
-    for img in imagepaths:
+    for img in imgpaths:
         img = tf.io.read_file(img)
         img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize(img, size=(227, 227))
-        # img = tf.image.crop_and_resize(tf.reshape(img, shape=(-1,256,256,3)), crop_size=(227, 227), boxes=[5, 4], box_indices=[5, ])
+        img = tf.image.resize(img, size=(256, 256))
         images.append(img)
     print('end resizing')
-    # images = tf.data.Dataset.from_tensors(tf.convert_to_tensor(images, dtype=tf.float32))
-    # img = tf.image.crop_and_resize(img, crop_size=(227, 227), boxes=[900., 4.], box_indices=[900, ])
-    # image = tf.image.crop_and_resize(image, crop_size=(227,227), boxes=[900, 4])
+    return images
 
+
+# RGB jittering
+def fancy_pca(images, labels, alpha_std=0.1):
+    print('Start Jittering')
+    pca_images,pca_labels = images.copy(),labels.copy()
+    for img,lbl in zip(images, labels):
+        orig_img = img.numpy().copy()
+        # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
+        img_rs = np.reshape(img, (-1, 3))
+        img_centered = img_rs - IMAGENET_MEAN
+        # 해당 이미지의 공분산 행렬 구함
+        img_cov = np.cov(img_centered, rowvar=False)
+        # 고유벡터, 고유값 구함
+        eig_vals, eig_vecs = np.linalg.eigh(img_cov)
+        sort_perm = eig_vals[::-1].argsort()
+        eig_vals[::-1].sort()
+        eig_vecs = eig_vecs[:, sort_perm]
+        # 고유벡터 세개를 쌓아서 3x3 행렬로 만듦
+        m1 = np.column_stack((eig_vecs))
+        m2 = np.zeros((3, 1))
+        # 랜덤값과 고유값을 곱함
+        alpha = np.random.normal(0, alpha_std)
+        m2[:, 0] = alpha * eig_vals
+        # 3x3 고유벡터 행렬과 3x1 랜덤값*고유값 행렬을 곱해서 3x1 행렬을 얻음(RGB 채널에 가감해줄 값)
+        add_vect = np.matrix(m1) * np.matrix(m2)
+        # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
+        for idx in range(3):
+            orig_img[..., idx] += add_vect[idx]
+        # 0~255(rgb픽셀값) 범위로 값 재설정
+        pca_img = np.clip(orig_img, 0.0, 255.0)
+        pca_img = pca_img.astype(np.float)
+        pca_images.append(pca_img)
+        pca_labels.append(lbl)
+    print('End jittering')
+    return pca_images, pca_labels
+
+
+# horizontal reflection
+def flip_image(images, labels):
+    print('Start flipping')
+    flipped_images,flipped_labels = images.copy(),labels.copy()
+    for img,lbl in zip(images,labels):
+        flipped_image = tf.image.flip_left_right(img)
+        flipped_images.append(flipped_image)
+        flipped_labels.append(lbl)
+    print('End flipping')
+    return flipped_images, flipped_labels
+
+
+# Image cropping
+def crop_image(images, labels):
+    print('Start cropping')
+    cropped_images, cropped_labels = list(), list()
+    for img,label in zip(images,labels):
+        # # left-top
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
+        # # right-top
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
+        # center
+        cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
+        # # left-bottom
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
+        # # right-bottom
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
+    print('End cropping')
+    return cropped_images, cropped_labels
+
+
+# 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
+def make_dataset(images, labels):
+    print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
     foo = list(zip(images, labels))
     random.Random(RANDOM_SEED).shuffle(foo)
-    # random.Random(RANDOM_SEED).shuffle(images)
-    # random.Random(RANDOM_SEED).shuffle(labels)
     images, labels = zip(*foo)
 
     # Split train/valid/test, total data size = 5,000
@@ -73,8 +170,9 @@ def load_dataset(path):
     train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
     # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
     # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
-
+    print('End making dataset')
     return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
+########################################################################################################################
 
 
 def loss(name, x, y, param):
@@ -135,7 +233,13 @@ def loss(name, x, y, param):
     return loss
 
 
-train_X, train_Y, valid_X, valid_Y, test_X, test_Y = load_dataset(TRAIN_IMG_DIR)
+# 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
+filepaths, labels = load_imagepaths(TRAIN_IMG_DIR)
+images = resize_images(filepaths)
+# images,labels = fancy_pca(images,labels)
+# images,labels = flip_image(images,labels)
+images,labels = crop_image(images,labels)
+train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
 
 # Trained model loading
 model_paths = list()

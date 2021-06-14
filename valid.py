@@ -175,8 +175,8 @@ def make_dataset(images, labels):
 ########################################################################################################################
 
 
-@tf.function
-def model(x, param):
+# @tf.function
+def loss(name, x, y, param):
     # inputs = tf.constant(x, name='inputs')
     inputs = x
     # layer 1
@@ -222,11 +222,6 @@ def model(x, param):
 
     # layer 8
     logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
-
-    return logits
-
-
-def loss(name, y, logits):
     predict = tf.argmax(logits, 1).numpy()
 
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
@@ -234,45 +229,47 @@ def loss(name, y, logits):
     target = y
     accuracy = np.sum(predict == target) / len(target)
 
-    print('model = {}\tloss = {}\taccuracy = {}'.format(name, loss.numpy(), accuracy))
+    print('model\t=\t{}\tloss={}\taccuracy={}'.format(name, loss.numpy(), accuracy))
 
     return loss
 
 
-# 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
-filepaths, labels = load_imagepaths(TRAIN_IMG_DIR)
-images = resize_images(filepaths)
-# images,labels = fancy_pca(images,labels)
-# images,labels = flip_image(images,labels)
-images,labels = crop_image(images,labels)
-train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
+def valid(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
+    # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
+    filepaths, labels = load_imagepaths(imgs_path)
+    images = resize_images(filepaths)
+    # images,labels = fancy_pca(images,labels)
+    # images,labels = flip_image(images,labels)
+    images,labels = crop_image(images,labels)
+    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
 
-# Trained model loading
-model_paths = list()
-walk = os.walk(CHECKPOINT_DIR).__next__()
-for file in walk[2]:
-    model_paths.append(os.path.join(CHECKPOINT_DIR, file))
+    # Trained model loading
+    model_paths = list()
+    walk = os.walk(ckpts_path).__next__()
+    for file in walk[2]:
+        model_paths.append(os.path.join(ckpts_path, file))
 
-# Validation step 에서 최소 loss 기록 모델을 best model로 선정
-min_loss = 99999999
-best_model = dict()
-# 저장된 trained 모델(=trained parameters) 들을 불러온 후, valid set 에서 loss 계산
-for model in model_paths:
-    loaded_param = np.load(model, allow_pickle=True)
-    loaded_param = {key: loaded_param[key].item() for key in loaded_param}
-    print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
-    print(type(model))
-    print(type(valid_X))
-    print(type(valid_Y))
-    print(type(loaded_param['arr_0']))
-    loss = loss(name=model,
-                y=valid_Y,
-                logits=model(x=valid_X,
-                             param=loaded_param['arr_0']))
-    # 저장된 최소 loss보다 작으면 best model 업데이트
-    if loss < min_loss:
-        min_loss = loss
-        best_model = loaded_param.copy()
-    del loaded_param
-# 최종으로 업데이트된 best model을 저장
-np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
+    # Validation step 에서 최소 loss 기록 모델을 best model로 선정
+    min_loss = 99999999
+    best_model = dict()
+    # 저장된 trained 모델(=trained parameters) 들을 불러온 후, valid set 에서 loss 계산
+    for model in model_paths:
+        loaded_param = np.load(model, allow_pickle=True)
+        loaded_param = {key: loaded_param[key].item() for key in loaded_param}
+        print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
+        # print(type(model))
+        # print(type(valid_X))
+        # print(type(valid_Y))
+        # print(type(loaded_param['arr_0']))
+        current_loss = loss(name=model,
+                            y=valid_Y,
+                            x=valid_X, param=loaded_param['arr_0'])
+        # 저장된 최소 loss보다 작으면 best model 업데이트
+        if current_loss < min_loss:
+            min_loss = current_loss
+            best_model = loaded_param.copy()
+    # 최종으로 업데이트된 best model을 저장
+    np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
+
+
+valid()

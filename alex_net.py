@@ -238,9 +238,9 @@ def loss(step, x, y, param):
 
     accuracy = np.sum(predict == target) / len(target)
 
-    print('epoch {}:\tloss = {}\taccuracy = {}'.format(step, loss.numpy(), accuracy))
+    print('loss = {}\taccuracy = {}'.format(loss.numpy(), accuracy))
 
-    return loss
+    return loss, accuracy
 ########################################################################################################################
 
 
@@ -299,8 +299,8 @@ parameters = init_params()
 # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
 filepaths, labels = load_imagepaths(TRAIN_IMG_DIR)
 images = resize_images(filepaths)
-images,labels = fancy_pca(images,labels)
-images,labels = flip_image(images,labels)
+# images,labels = fancy_pca(images,labels)
+# images,labels = flip_image(images,labels)
 images,labels = crop_image(images,labels)
 train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
 
@@ -310,12 +310,16 @@ for epoch in range(NUM_EPOCHS):
     foo = 1
     # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
     # 즉, 1epoch에 16번 가중치 업데이트가 이루어짐
+    losses, accs = list(), list()
     for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
         print('batch {}'.format(foo))
         foo += 1
         # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
         # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
-        optimizer.minimize(lambda: loss(epoch, batch_X, batch_Y, parameters), var_list=parameters)
-
+        loss, acc = loss(epoch, batch_X, batch_Y, parameters)
+        optimizer.minimize(loss, var_list=parameters)
+        losses.append(loss)
+        accs.append(acc)
+    print('epoch {} :\tmean_loss = {}\taccuracy = {}'.format(epoch, losses.mean(), accs.mean()))
 # Save the updated parameters(weights, biases)
 np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)

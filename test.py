@@ -125,25 +125,25 @@ def crop_image(images, labels):
     cropped_images, cropped_labels = list(), list()
     for img,label in zip(images,labels):
         # # left-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # # right-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # center
         cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
         # # left-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # # right-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
     print('End cropping')
     return cropped_images, cropped_labels
 
@@ -234,13 +234,13 @@ def loss(name, x, y, param):
     return loss
 
 
-def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
+def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
     images = resize_images(filepaths)
     # images,labels = fancy_pca(images,labels)
-    # images,labels = flip_image(images,labels)
     images,labels = crop_image(images,labels)
+    images,labels = flip_image(images,labels)
     train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
 
     # Trained model loading

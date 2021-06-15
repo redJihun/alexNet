@@ -91,6 +91,7 @@ def fancy_pca(images, labels, alpha_std=0.1):
         m1 = np.column_stack((eig_vecs))
         m2 = np.zeros((3, 1))
         # 랜덤값과 고유값을 곱함
+        np.random.seed(RANDOM_SEED)
         alpha = np.random.normal(0, alpha_std)
         m2[:, 0] = alpha * eig_vals
         # 3x3 고유벡터 행렬과 3x1 랜덤값*고유값 행렬을 곱해서 3x1 행렬을 얻음(RGB 채널에 가감해줄 값)
@@ -125,25 +126,25 @@ def crop_image(images, labels):
     cropped_images, cropped_labels = list(), list()
     for img,label in zip(images,labels):
         # # left-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # # right-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # center
         cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
         # # left-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # # right-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
     print('End cropping')
     return cropped_images, cropped_labels
 
@@ -239,8 +240,8 @@ def valid(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
     filepaths, labels = load_imagepaths(imgs_path)
     images = resize_images(filepaths)
     # images,labels = fancy_pca(images,labels)
-    # images,labels = flip_image(images,labels)
     images,labels = crop_image(images,labels)
+    images,labels = flip_image(images,labels)
     train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
 
     # Trained model loading

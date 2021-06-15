@@ -18,9 +18,13 @@
 
 ### Using docker
 1. Build Dockerfile
-```sudo docker build -t tf:0.1 .```
+```bash
+sudo docker build -t tf:0.1 .
+```
 3. Run docker image(with volume option)
-```docker run -it -v your_clone_directory_path:/alexNet tf:0.1 /bin/bash```
+```
+docker run -it -v your_clone_directory_path:/alexNet tf:0.1 /bin/bash
+```
 3. Run alex_net.py for training
 ```
 (Docker bash): cd alexNet/

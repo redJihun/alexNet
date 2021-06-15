@@ -18,16 +18,16 @@
 
 ### Using docker
 1. Build Dockerfile
-    sudo docker build -t tf:0.1 .
-2. Run docker image(with volume option)
-    docker run -it -v your_clone_directory_path:/alexNet tf:0.1 /bin/bash
+  sudo docker build -t tf:0.1 .
+3. Run docker image(with volume option)
+  docker run -it -v your_clone_directory_path:/alexNet tf:0.1 /bin/bash
 3. Run alex_net.py for training
-    (In docker bash): cd alexNet/
-    python3.6 alex_net.py
-    (Training...)
+  (In docker bash): cd alexNet/
+  python3.6 alex_net.py
+  (Training...)
 4. Run valid.py for validation
-    (In docker bash): python3.6 valid.py
-    (Validation...)
+  (In docker bash): python3.6 valid.py
+  (Validation...)
 5. Run test.py for testing
-    (In docker bash): python3.6 test.py
-    (You got test result)
+  (In docker bash): python3.6 test.py
+  (You got test result)

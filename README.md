@@ -9,8 +9,25 @@
 - random
 
 ## How to run
+### Not using docker 
 1. Run the alex_net.py for training
   - When you finish the training, you get trained parameters in "./output/models/" directory.
 2. Run valid.py for validation step
   - When you finish the validation step, you get best parameters(have minimum loss) for AlexNet.(Ofcourse one of your trained parameters. Not world best.)
   - The best_model.npz file create at "./output/" directory.
+
+### Using docker
+1. Build Dockerfile
+    sudo docker build -t tf:0.1 .
+2. Run docker image(with volume option)
+    docker run -it -v your_clone_directory_path:/alexNet tf:0.1 /bin/bash
+3. Run alex_net.py for training
+    (In docker bash): cd alexNet/
+    python3.6 alex_net.py
+    (Training...)
+4. Run valid.py for validation
+    (In docker bash): python3.6 valid.py
+    (Validation...)
+5. Run test.py for testing
+    (In docker bash): python3.6 test.py
+    (You got test result)

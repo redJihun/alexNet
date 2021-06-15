@@ -21,15 +21,15 @@ BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
-NUM_CLASSES = 5
+NUM_CLASSES = 3
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
 INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
+TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'task')
 OUTPUT_ROOT_DIR = './output'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'task')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)

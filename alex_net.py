@@ -21,15 +21,15 @@ BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
-NUM_CLASSES = 5
+NUM_CLASSES = 3
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
 INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
+TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'task')
 OUTPUT_ROOT_DIR = './output'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'models')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'task')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -125,25 +125,25 @@ def crop_image(images, labels):
     cropped_images, cropped_labels = list(), list()
     for img,label in zip(images,labels):
         # # left-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # # right-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # center
         cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
         # # left-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # # right-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
     print('End cropping')
     return cropped_images, cropped_labels
 
@@ -303,8 +303,8 @@ def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     filepaths, labels = load_imagepaths(imgs_path)
     images = resize_images(filepaths)
     # images,labels = fancy_pca(images,labels)
-    # images,labels = flip_image(images,labels)
     images,labels = crop_image(images,labels)
+    images,labels = flip_image(images,labels)
     train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
@@ -322,5 +322,5 @@ def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # Save the updated parameters(weights, biases)
     np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
 
-
-train()
+for i in range(5):
+    train()

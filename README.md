@@ -23,17 +23,17 @@
 ```docker run -it -v your_clone_directory_path:/alexNet tf:0.1 /bin/bash```
 3. Run alex_net.py for training
 ```
-(In docker bash): cd alexNet/
-python3.6 alex_net.py
+(Docker bash): cd alexNet/
+(Docker bash): python3.6 alex_net.py
 (Training...)
 ```
 4. Run valid.py for validation
 ```
-(In docker bash): python3.6 valid.py
+(Docker bash): python3.6 valid.py
 (Validation...)
 ```
 5. Run test.py for testing
 ```
-(In docker bash): python3.6 test.py
+(Docker bash): python3.6 test.py
 (You got test result)
 ```

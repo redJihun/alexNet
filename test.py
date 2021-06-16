@@ -241,7 +241,7 @@ def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
     images = resize_images(filepaths)
-    # images,labels = fancy_pca(images,labels)
+    images,labels = fancy_pca(images,labels)
     images,labels = crop_image(images,labels)
     images,labels = flip_image(images,labels)
     train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)

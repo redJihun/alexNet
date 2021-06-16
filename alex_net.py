@@ -323,5 +323,5 @@ def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
 
 
-for i in range(5,0, -1):
+for i in range(8,0, -1):
     train(epochs=NUM_EPOCHS - (i*10))

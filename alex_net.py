@@ -26,10 +26,10 @@ IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
 INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'task')
+TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
 OUTPUT_ROOT_DIR = './output'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'task')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tiny_imagenet')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)

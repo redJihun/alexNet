@@ -26,10 +26,10 @@ IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
 INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'task')
+TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
 OUTPUT_ROOT_DIR = './output'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'task')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tiny_imagenet')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -263,7 +263,7 @@ def valid(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
             min_loss = current_loss
             best_model = loaded_param['arr_0'].copy()
     # 최종으로 업데이트된 best model을 저장
-    np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
+    np.savez(os.path.join(OUTPUT_ROOT_DIR, 't_i_best_model'), best_model)
     print("\nBest model : loss={}\n{}".format(min_loss, best_model['b8']))
 
 

@@ -9,4 +9,5 @@ RUN python3.6 -m pip install tensorflow==2.4.1
 RUN python3.6 -m pip install tensorflow_addons
 RUN python3.6 -m pip install opencv-python
 
+WORKDIR ./alexNet/
 #VOLUME /root/home/hong/PycharmProjects/pythonProject/alexNet

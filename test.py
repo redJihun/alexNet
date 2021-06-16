@@ -11,6 +11,9 @@ import tensorflow_addons as tfa
 import numpy as np
 import random
 
+# visualization
+import cv2
+
 RANDOM_SEED = 602
 # random.seed(RANDOM_SEED)
 # tf.random.set_seed(RANDOM_SEED)
@@ -231,7 +234,7 @@ def loss(name, x, y, param):
 
     print('model\t=\t{}\tloss={}\taccuracy={}'.format(name, loss.numpy(), accuracy))
 
-    return loss
+    return loss, predict
 
 
 def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
@@ -243,18 +246,23 @@ def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     images,labels = flip_image(images,labels)
     train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
 
-    # Trained model loading
-    model_paths = list()
-    walk = os.walk(ckpts_path).__next__()
-    for file in walk[2]:
-        if file.endswith('best_model.npz'):
-            model_paths.append(os.path.join(ckpts_path, file))
+    # 클래스명 출력을 위해 디렉토리명 저장
+    dirs = list()
+    for dir in os.walk(TRAIN_IMG_DIR).__next__()[1]:
+        dirs.append(dir)
+
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, test set 에서 loss 계산
-    for model in model_paths:
-        loaded_param = np.load(model, allow_pickle=True)
-        loaded_param = {key: loaded_param[key].item() for key in loaded_param}
-        print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
-        current_loss = loss(name=model, x=test_X, y=test_Y, param=loaded_param['arr_0'])
+    loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
+    loaded_param = {key: loaded_param[key].item() for key in loaded_param}
+    _, prediction = loss(name='best_model', x=test_X, y=test_Y, param=loaded_param['arr_0'])
+    test_X, test_Y = tf.data.Dataset.from_tensor_slices(test_X), tf.data.Dataset.from_tensor_slices(test_Y)
+
+    for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
+        print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
+        cv2.imshow('test', x)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
 test()
+

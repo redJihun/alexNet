@@ -21,7 +21,7 @@
 ```bash
 sudo docker build -t tf:0.1 .
 ```
-3. Run docker image(with volume option)
+2. Run docker image(with volume option)
 ```
 docker run -it -v your_clone_directory_path:/alexNet tf:0.1 /bin/bash
 ```

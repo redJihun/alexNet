@@ -21,7 +21,7 @@ BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
-NUM_CLASSES = 200
+NUM_CLASSES = 10
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
@@ -125,25 +125,25 @@ def crop_image(images, labels):
     cropped_images, cropped_labels = list(), list()
     for img,label in zip(images,labels):
         # # left-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # # right-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # center
         cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
         # # left-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
         # # right-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
+        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        cropped_images.append(cropped_img)
+        cropped_labels.append(label)
     print('End cropping')
     return cropped_images, cropped_labels
 
@@ -322,6 +322,6 @@ def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # Save the updated parameters(weights, biases)
     np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
 
-
-for i in range(8,0, -1):
-    train(epochs=NUM_EPOCHS - (i*10))
+for i in range(3):
+    for i in range(8,0, -1):
+        train(epochs=NUM_EPOCHS - (i*10))

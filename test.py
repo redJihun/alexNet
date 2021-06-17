@@ -24,13 +24,13 @@ BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
-NUM_CLASSES = 10
+NUM_CLASSES = 200
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
-INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
-OUTPUT_ROOT_DIR = './output'
+INPUT_ROOT_DIR = './input/200_labels'
+TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
+OUTPUT_ROOT_DIR = './output/200_labels'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
 CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tiny_imagenet')
 
@@ -154,27 +154,18 @@ def crop_image(images, labels):
 # 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
 def make_dataset(images, labels):
     print('Start making dataset')
-    # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
+
+    # 증강된 데이터 셔플
     foo = list(zip(images, labels))
     random.Random(RANDOM_SEED).shuffle(foo)
     images, labels = zip(*foo)
 
-    # Split train/valid/test, total data size = 5,000
-    train_X, train_Y = images[:int(len(images)*0.8)], labels[:int(len(labels)*0.8)]
-    valid_X, valid_Y = images[int(len(images)*0.8):int(len(images)*0.9)], labels[int(len(labels)*0.8):int(len(labels)*0.9)]
-    test_X, test_Y = images[int(len(images)*0.9):], labels[int(len(labels)*0.9):]
-
     # Convert to Tensor
-    train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
-    valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_to_tensor(valid_Y, dtype=tf.int32)
-    test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
+    test_X, test_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
 
-    # Build Tf dataset
-    train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-    # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
     print('End making dataset')
-    return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
+
+    return test_X, test_Y
 ########################################################################################################################
 
 
@@ -237,29 +228,32 @@ def loss(name, x, y, param):
     return loss, predict
 
 
-def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
+def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
     images = resize_images(filepaths)
     images,labels = fancy_pca(images,labels)
     images,labels = crop_image(images,labels)
     images,labels = flip_image(images,labels)
-    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
+    test_X, test_Y = make_dataset(images,labels)
 
     # 클래스명 출력을 위해 디렉토리명 저장
     dirs = list()
-    for dir in os.walk(TRAIN_IMG_DIR).__next__()[1]:
+    for dir in os.walk(TEST_IMG_DIR).__next__()[1]:
         dirs.append(dir)
 
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, test set 에서 loss 계산
-    loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 't_i_best_model.npz'), allow_pickle=True)
+    loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
     loaded_param = {key: loaded_param[key].item() for key in loaded_param}
     _, prediction = loss(name='best_model', x=test_X, y=test_Y, param=loaded_param['arr_0'])
+
+    # 시각화하여 보기 위한 변수 선언
     test_X, test_Y = tf.data.Dataset.from_tensor_slices(test_X), tf.data.Dataset.from_tensor_slices(test_Y)
     accs = list()
 
+    # 실제 데이터와 모델 예측을 직접 확인
     for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
-        print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
+        # print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
         # cv2.imshow('test', x)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()

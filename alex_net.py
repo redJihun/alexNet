@@ -270,19 +270,22 @@ def init_params():
 
 
 ########################################################################################################################
-# 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
-# 적용 방법의 추가적인 연구가 필요.
-# lr_schedule = tf.optimizers.schedules.De(
-#     initial_learning_rate= 0.001,
-#     decay_steps=
-# )
+
 
 
 def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+    # 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
+    # 적용 방법의 추가적인 연구가 필요.
+    lr_scheduler = tf.optimizers.schedules.PolynomialDecay(
+        initial_learning_rate=LR_INIT,
+        decay_steps=10000,
+        end_learning_rate=LR_INIT*(1e-3)
+    )
+
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
     # learning_rate를 0.01(follow 논문)으로 설정 시, loss가 발산하는 문제 발생, 따라서 0.001로 설정
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
+    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_scheduler, weight_decay=LR_DECAY, name='optimizer')
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()

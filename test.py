@@ -103,7 +103,7 @@ def fancy_pca(images, labels, alpha_std=0.1):
             orig_img[..., idx] += add_vect[idx]
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = np.clip(orig_img, 0.0, 255.0)
-        pca_img = pca_img.astype(np.float)
+        # pca_img = pca_img.astype(np.float)
         pca_images.append(pca_img)
         pca_labels.append(lbl)
     print('End jittering')

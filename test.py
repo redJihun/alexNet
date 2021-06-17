@@ -103,7 +103,7 @@ def fancy_pca(images, labels, alpha_std=0.1):
             orig_img[..., idx] += add_vect[idx]
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = np.clip(orig_img, 0.0, 255.0)
-        pca_img = pca_img.astype(np.float)
+        # pca_img = pca_img.astype(np.float)
         pca_images.append(pca_img)
         pca_labels.append(lbl)
     print('End jittering')
@@ -256,12 +256,15 @@ def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     loaded_param = {key: loaded_param[key].item() for key in loaded_param}
     _, prediction = loss(name='best_model', x=test_X, y=test_Y, param=loaded_param['arr_0'])
     test_X, test_Y = tf.data.Dataset.from_tensor_slices(test_X), tf.data.Dataset.from_tensor_slices(test_Y)
+    accs = list()
 
     for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
         print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
-        cv2.imshow('test', x)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow('test', x)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        accs.append(1 if y == pred else 0)
+    print('Test accuracy = {}'.format(sum(accs)/len(accs)))
 
 
 test()

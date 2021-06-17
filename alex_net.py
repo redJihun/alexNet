@@ -303,7 +303,7 @@ def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
         for i in range(int(np.ceil(len(filepaths)/32))):
             # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
             if i == int(np.ceil(len(filepaths)/32))-1:
-                fpaths, lbls = filepaths[i*32:], labels[i*32:]
+                fpaths, lbls = filepaths[i*32:], list(labels[i*32:])
             # 그 외의 split은 32의 배수로 나누어서 로드
             else:
                 fpaths, lbls = filepaths[i*32:(i+1)*32], list(labels[i*32:(i+1)*32])

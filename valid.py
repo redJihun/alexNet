@@ -232,7 +232,7 @@ def loss(name, x, y, param):
 
     print('model\t=\t{}\tloss={}\taccuracy={}'.format(name, loss.numpy(), accuracy))
 
-    return loss
+    return loss, accuracy
 
 
 def valid(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
@@ -257,14 +257,14 @@ def valid(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         loaded_param = np.load(model, allow_pickle=True)
         loaded_param = {key: loaded_param[key].item() for key in loaded_param}
         print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
-        current_loss = loss(name=model, x=valid_X, y=valid_Y, param=loaded_param['arr_0'])
+        current_loss, current_acc = loss(name=model, x=valid_X, y=valid_Y, param=loaded_param['arr_0'])
         # 저장된 최소 loss보다 작으면 best model 업데이트
         if current_loss < min_loss:
-            min_loss = current_loss
+            min_loss, accuracy = current_loss, current_acc
             best_model = loaded_param['arr_0'].copy()
     # 최종으로 업데이트된 best model을 저장
     np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
-    print("\nBest model : loss={}\n{}".format(min_loss, best_model['b8']))
+    print("\nBest model : loss={}\taccuracy={}\n{}".format(min_loss, accuracy, best_model['b8']))
 
 
 valid()

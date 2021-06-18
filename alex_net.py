@@ -70,7 +70,7 @@ def resize_images(imgpaths):
     for img in imgpaths:
         img = tf.io.read_file(img)
         img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize(img, size=(256, 256), method=tf.image.ResizeMethod.LANCZOS5)
+        img = tf.image.resize(img, size=(256, 256), method=tf.image.ResizeMethod.BILINEAR)
         images.append(img)
     # print('end resizing')
     return images

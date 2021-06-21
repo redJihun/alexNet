@@ -25,11 +25,11 @@ NUM_CLASSES = 3
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
-INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'task')
-OUTPUT_ROOT_DIR = './output'
+INPUT_ROOT_DIR = './input/task'
+TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
+OUTPUT_ROOT_DIR = './output/task'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'task')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'train')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -54,76 +54,88 @@ def load_imagepaths(path):
         # next directory
         label += 1
 
+    # 32개 데이터씩 split 하므로 미리 원 데이터를 셔플해준 후에 증강 진행.
+    foo = list(zip(imagepaths, labels))
+    random.Random(RANDOM_SEED).shuffle(foo)
+    imagepaths, labels = zip(*foo)
+
     return imagepaths, labels
 
 
 # 256x256으로 이미지 다운샘플링
 def resize_images(imgpaths):
     # Read images from disk & resize
-    print('start resizing image')
+    # print('start resizing image')
     images = list()
     for img in imgpaths:
         img = tf.io.read_file(img)
         img = tf.image.decode_jpeg(img, channels=3)
         img = tf.image.resize(img, size=(256, 256), method=tf.image.ResizeMethod.LANCZOS5)
         images.append(img)
-    print('end resizing')
+    # print('end resizing')
     return images
 
 
 # RGB jittering
 def fancy_pca(images, labels, alpha_std=0.1):
-    print('Start Jittering')
+    # print('Start Jittering')
     pca_images,pca_labels = images.copy(),labels.copy()
     for img,lbl in zip(images, labels):
         orig_img = img.numpy().copy()
+
         # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
         img_rs = np.reshape(img, (-1, 3))
         img_centered = img_rs - IMAGENET_MEAN
+
         # 해당 이미지의 공분산 행렬 구함
         img_cov = np.cov(img_centered, rowvar=False)
+
         # 고유벡터, 고유값 구함
         eig_vals, eig_vecs = np.linalg.eigh(img_cov)
         sort_perm = eig_vals[::-1].argsort()
         eig_vals[::-1].sort()
         eig_vecs = eig_vecs[:, sort_perm]
+
         # 고유벡터 세개를 쌓아서 3x3 행렬로 만듦
         m1 = np.column_stack((eig_vecs))
         m2 = np.zeros((3, 1))
+
         # 랜덤값과 고유값을 곱함
         alpha = np.random.normal(0, alpha_std)
         m2[:, 0] = alpha * eig_vals
+
         # 3x3 고유벡터 행렬과 3x1 랜덤값*고유값 행렬을 곱해서 3x1 행렬을 얻음(RGB 채널에 가감해줄 값)
         add_vect = np.matrix(m1) * np.matrix(m2)
+
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
+
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = np.clip(orig_img, 0.0, 255.0)
-        # pca_img = pca_img.astype(np.float)
         pca_images.append(pca_img)
         pca_labels.append(lbl)
-    print('End jittering')
+    # print('End jittering')
     return pca_images, pca_labels
 
 
 # horizontal reflection
 def flip_image(images, labels):
-    print('Start flipping')
-    flipped_images,flipped_labels = images.copy(),labels.copy()
-    for img,lbl in zip(images,labels):
+    # print('Start flipping')
+    flipped_images, flipped_labels = images.copy(), labels.copy()
+    for img, lbl in zip(images, labels):
         flipped_image = tf.image.flip_left_right(img)
         flipped_images.append(flipped_image)
         flipped_labels.append(lbl)
-    print('End flipping')
+    # print('End flipping')
     return flipped_images, flipped_labels
 
 
 # Image cropping
 def crop_image(images, labels):
-    print('Start cropping')
+    # print('Start cropping')
     cropped_images, cropped_labels = list(), list()
-    for img,label in zip(images,labels):
+    for img, label in zip(images, labels):
         # # left-top
         cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
         cropped_images.append(cropped_img)
@@ -144,34 +156,26 @@ def crop_image(images, labels):
         cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
-    print('End cropping')
+    # print('End cropping')
     return cropped_images, cropped_labels
 
 
 # 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
 def make_dataset(images, labels):
-    print('Start making dataset')
+    # print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
     foo = list(zip(images, labels))
     random.Random(RANDOM_SEED).shuffle(foo)
     images, labels = zip(*foo)
 
-    # Split train/valid/test, total data size = 5,000
-    train_X, train_Y = images[:int(len(images)*0.8)], labels[:int(len(labels)*0.8)]
-    valid_X, valid_Y = images[int(len(images)*0.8):int(len(images)*0.9)], labels[int(len(labels)*0.8):int(len(labels)*0.9)]
-    test_X, test_Y = images[int(len(images)*0.9):], labels[int(len(labels)*0.9):]
-
     # Convert to Tensor
-    train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
-    valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_to_tensor(valid_Y, dtype=tf.int32)
-    test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
+    train_X, train_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
 
     # Build Tf dataset
-    train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-    # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
-    print('End making dataset')
-    return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
+    train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=BATCH_SIZE), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=BATCH_SIZE)
+    # print('End making dataset')
+
+    return train_X, train_Y
 ########################################################################################################################
 
 
@@ -179,7 +183,7 @@ def make_dataset(images, labels):
 # 원 라벨 y와 예측된 라벨을 비교하여 계산된 loss, accuracy 리턴하는 함수
 # 모델 구조가 포함되었음
 # 매개변수로 현재 수행 중인 epoch(=step), 입력된 이미지 데이터(=x), 입력된 데이터의 라벨(=y), 가중치 dictionary(=param) 가 주어짐
-def loss(step, x, y, param):
+def loss(batch_num, x, y, param, step):
     inputs = tf.constant(x, name='inputs')
 
     # layer 1
@@ -238,7 +242,7 @@ def loss(step, x, y, param):
 
     accuracy = np.sum(predict == target) / len(target)
 
-    print('batch{}\t:\tloss={}\taccuracy={}'.format(step, loss.numpy(), accuracy))
+    print('step {}\tbatch{}\t:\tloss={}\taccuracy={}'.format(step, batch_num, loss.numpy(), accuracy))
 
     return loss
 ########################################################################################################################
@@ -279,33 +283,26 @@ def init_params():
 
 
 ########################################################################################################################
-# def __main__():
-
-# 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
-# 적용 방법의 추가적인 연구가 필요.
-# lr_schedule = tf.optimizers.schedules.De(
-#     initial_learning_rate= 0.001,
-#     decay_steps=
-# )
 
 
-def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+
+def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+    # 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
+    # 적용 방법의 추가적인 연구가 필요.
+    lr_scheduler = tf.optimizers.schedules.PolynomialDecay(
+        initial_learning_rate=LR_INIT,
+        decay_steps=1000,
+        end_learning_rate=LR_INIT/(10**3)
+    )
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
-    # learning_rate를 0.01(follow 논문)으로 설정 시, loss가 발산하는 문제 발생, 따라서 0.001로 설정
-    # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=0.5, name='optimizer')
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
+    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_scheduler, weight_decay=LR_DECAY, name='optimizer')
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()
 
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
-    images = resize_images(filepaths)
-    images,labels = fancy_pca(images,labels)
-    images,labels = crop_image(images,labels)
-    images,labels = flip_image(images,labels)
-    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
     for epoch in range(epochs):
@@ -314,14 +311,33 @@ def train(imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
         foo = 1
         # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
         # 즉, 1epoch에 16번 가중치 업데이트가 이루어짐
-        for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
-            # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
-            # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
-            optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters), var_list=parameters)
-            foo += 1
+        for i in range(int(np.ceil(len(filepaths)/32))):
+            # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
+            if i == int(np.ceil(len(filepaths) / 32)) - 1:
+                fpaths, lbls = filepaths[i * 32:], list(labels[i * 32:])
+            # 그 외의 split은 32의 배수로 나누어서 로드
+            else:
+                fpaths, lbls = filepaths[i * 32:(i + 1) * 32], list(labels[i * 32:(i + 1) * 32])
+
+            imgs = resize_images(fpaths)
+            imgs, lbls = fancy_pca(imgs, lbls)
+            imgs, lbls = crop_image(imgs, lbls)
+            imgs, lbls = flip_image(imgs, lbls)
+            train_X, train_Y = make_dataset(imgs, lbls)
+
+            # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
+            # -> 1epoch에 16번 가중치 업데이트가 이루어짐
+            for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
+                # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
+                # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
+                optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step), var_list=parameters)
+                foo += 1
+                step += 1
     # Save the updated parameters(weights, biases)
-    np.savez(os.path.join(CHECKPOINT_DIR, 'trained_parameters'+time.strftime('%y%m%d%H%M%S', time.localtime())), parameters)
+    np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime())+'_{}epochs'.format(epochs)), parameters)
 
 
-for i in range(8,0, -1):
-    train(epochs=NUM_EPOCHS - (i*10))
+for k in range(5):
+    step = 1
+    for repeat in range(6, 0, -1):
+        train(epochs=NUM_EPOCHS - (repeat*10), step=step)

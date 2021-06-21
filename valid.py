@@ -25,11 +25,11 @@ NUM_CLASSES = 3
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
-INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'task')
-OUTPUT_ROOT_DIR = './output'
+INPUT_ROOT_DIR = './input/task'
+VALID_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'valid')
+OUTPUT_ROOT_DIR = './output/task'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'task')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'train')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -101,7 +101,6 @@ def fancy_pca(images, labels, alpha_std=0.1):
             orig_img[..., idx] += add_vect[idx]
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = np.clip(orig_img, 0.0, 255.0)
-        # pca_img = pca_img.astype(np.float)
         pca_images.append(pca_img)
         pca_labels.append(lbl)
     print('End jittering')
@@ -152,27 +151,17 @@ def crop_image(images, labels):
 # 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
 def make_dataset(images, labels):
     print('Start making dataset')
+
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
     foo = list(zip(images, labels))
     random.Random(RANDOM_SEED).shuffle(foo)
     images, labels = zip(*foo)
 
-    # Split train/valid/test, total data size = 5,000
-    train_X, train_Y = images[:int(len(images)*0.8)], labels[:int(len(labels)*0.8)]
-    valid_X, valid_Y = images[int(len(images)*0.8):int(len(images)*0.9)], labels[int(len(labels)*0.8):int(len(labels)*0.9)]
-    test_X, test_Y = images[int(len(images)*0.9):], labels[int(len(labels)*0.9):]
-
     # Convert to Tensor
-    train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
-    valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_to_tensor(valid_Y, dtype=tf.int32)
-    test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
+    valid_X, valid_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
 
-    # Build Tf dataset
-    train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-    # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
     print('End making dataset')
-    return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
+    return valid_X, valid_Y
 ########################################################################################################################
 
 
@@ -235,33 +224,37 @@ def loss(name, x, y, param):
     return loss, accuracy
 
 
-def valid(imgs_path=TRAIN_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
+def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
     images = resize_images(filepaths)
-    images,labels = fancy_pca(images,labels)
-    images,labels = crop_image(images,labels)
-    images,labels = flip_image(images,labels)
-    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
+    images, labels = fancy_pca(images, labels)
+    images, labels = crop_image(images, labels)
+    images, labels = flip_image(images, labels)
+    valid_X, valid_Y = make_dataset(images, labels)
 
     # Trained model loading
     model_paths = list()
     walk = os.walk(ckpts_path).__next__()
     for file in walk[2]:
         model_paths.append(os.path.join(ckpts_path, file))
+
     # Validation step 에서 최소 loss 기록 모델을 best model로 선정
     min_loss = 99999999
     best_model = dict()
+
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, valid set 에서 loss 계산
     for model in model_paths:
         loaded_param = np.load(model, allow_pickle=True)
         loaded_param = {key: loaded_param[key].item() for key in loaded_param}
         print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
         current_loss, current_acc = loss(name=model, x=valid_X, y=valid_Y, param=loaded_param['arr_0'])
+
         # 저장된 최소 loss보다 작으면 best model 업데이트
         if current_loss < min_loss:
             min_loss, accuracy = current_loss, current_acc
             best_model = loaded_param['arr_0'].copy()
+
     # 최종으로 업데이트된 best model을 저장
     np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
     print("\nBest model : loss={}\taccuracy={}\n{}".format(min_loss, accuracy, best_model['b8']))

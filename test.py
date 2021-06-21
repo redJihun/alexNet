@@ -28,11 +28,11 @@ NUM_CLASSES = 3
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
-INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'task')
-OUTPUT_ROOT_DIR = './output'
+INPUT_ROOT_DIR = './input/task'
+TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
+OUTPUT_ROOT_DIR = './output/task'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'task')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'train')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -103,7 +103,6 @@ def fancy_pca(images, labels, alpha_std=0.1):
             orig_img[..., idx] += add_vect[idx]
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = np.clip(orig_img, 0.0, 255.0)
-        # pca_img = pca_img.astype(np.float)
         pca_images.append(pca_img)
         pca_labels.append(lbl)
     print('End jittering')
@@ -159,22 +158,10 @@ def make_dataset(images, labels):
     random.Random(RANDOM_SEED).shuffle(foo)
     images, labels = zip(*foo)
 
-    # Split train/valid/test, total data size = 5,000
-    train_X, train_Y = images[:int(len(images)*0.8)], labels[:int(len(labels)*0.8)]
-    valid_X, valid_Y = images[int(len(images)*0.8):int(len(images)*0.9)], labels[int(len(labels)*0.8):int(len(labels)*0.9)]
-    test_X, test_Y = images[int(len(images)*0.9):], labels[int(len(labels)*0.9):]
-
     # Convert to Tensor
-    train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
-    valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_to_tensor(valid_Y, dtype=tf.int32)
-    test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
-
-    # Build Tf dataset
-    train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-    # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
+    test_X, test_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
     print('End making dataset')
-    return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
+    return test_X, test_Y
 ########################################################################################################################
 
 
@@ -237,18 +224,18 @@ def loss(name, x, y, param):
     return loss, predict
 
 
-def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
+def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
     images = resize_images(filepaths)
-    images,labels = fancy_pca(images,labels)
-    images,labels = crop_image(images,labels)
-    images,labels = flip_image(images,labels)
-    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
+    images, labels = fancy_pca(images, labels)
+    images, labels = crop_image(images, labels)
+    images, labels = flip_image(images, labels)
+    test_X, test_Y = make_dataset(images, labels)
 
     # 클래스명 출력을 위해 디렉토리명 저장
     dirs = list()
-    for dir in os.walk(TRAIN_IMG_DIR).__next__()[1]:
+    for dir in os.walk(TEST_IMG_DIR).__next__()[1]:
         dirs.append(dir)
 
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, test set 에서 loss 계산

@@ -296,7 +296,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     )
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_scheduler, weight_decay=LR_DECAY, name='optimizer')
+    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()

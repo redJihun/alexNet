@@ -309,7 +309,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
     for epoch in range(epochs):
-        if epoch % 10 == 0 and lr_temp >= 1e-5:
+        if (epoch+1) % 10 == 0 and lr_temp >= 1e-5:
             lr_temp /= 10;
         optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
         print('epoch {}'.format(epoch+1))
@@ -340,10 +340,9 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 foo += 1
                 step += 1
     # Save the updated parameters(weights, biases)
-    np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime())+'_{}epochs'.format(epochs)), parameters)
-
+        if (epoch+1) % 10 == 0:
+            np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch)), parameters)
 
 for k in range(5):
     step = 1
-    for repeat in range(6, 0, -1):
-        train(epochs=NUM_EPOCHS - (repeat*10), step=step)
+    train(epochs=NUM_EPOCHS, step=step)

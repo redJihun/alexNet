@@ -3,6 +3,7 @@ import os
 import time
 
 # Deep-learning framework
+import cv2
 import tensorflow as tf
 # import tensorflow_datasets as tfds
 import tensorflow_addons as tfa
@@ -70,10 +71,15 @@ def resize_images(imgpaths):
     # print('start resizing image')
     images = list()
     for img in imgpaths:
-        img = tf.io.read_file(img)
-        img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize_with_crop_or_pad(img, target_height=256, target_width=256)
-        images.append(img)
+        try:
+            image = cv2.imread(img)
+            image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+            images.append(image)
+        except:
+            image = tf.io.read_file(img)
+            image = tf.image.decode_jpeg(image, channels=3)
+            image = tf.image.resize_with_crop_or_pad(image, target_height=256, target_width=256)
+            images.append(image)
     # print('end resizing')
     return images
 

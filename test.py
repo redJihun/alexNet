@@ -67,10 +67,15 @@ def resize_images(imgpaths):
     # print('start resizing image')
     images = list()
     for img in imgpaths:
-        img = tf.io.read_file(img)
-        img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize_with_crop_or_pad(img, target_height=256, target_width=256)
-        images.append(img)
+        try:
+            image = cv2.imread(img)
+            image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+            images.append(image)
+        except:
+            image = tf.io.read_file(img)
+            image = tf.image.decode_jpeg(image, channels=3)
+            image = tf.image.resize_with_crop_or_pad(image, target_height=256, target_width=256)
+            images.append(image)
     # print('end resizing')
     return images
 
@@ -162,6 +167,7 @@ def make_dataset(images, labels):
 
     # Convert to Tensor
     test_X, test_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
+    # test_X, test_Y = tf.expand_dims(test_X, 0), tf.expand_dims(test_Y, 0)
 
     # print('End making dataset')
     return test_X, test_Y
@@ -264,7 +270,7 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
         print(y,pred)
         print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
-        cv2.imshow('test', np.array(x, dtype=np.float))
+        cv2.imshow('test', np.array(x, dtype=np.uint8))
         cv2.waitKey(0)
         cv2.destroyAllWindows()
         accs.append(1 if y == pred else 0)

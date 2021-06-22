@@ -13,6 +13,7 @@ import random
 
 # visualization
 import cv2
+from sklearn.preprocessing import minmax_scale
 
 RANDOM_SEED = 602
 # random.seed(RANDOM_SEED)
@@ -68,7 +69,7 @@ def resize_images(imgpaths):
     for img in imgpaths:
         img = tf.io.read_file(img)
         img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize(img, size=(256, 256), method=tf.image.ResizeMethod.LANCZOS5)
+        img = tf.image.resize_with_crop_or_pad(img, target_height=256, target_width=256)
         images.append(img)
     print('end resizing')
     return images
@@ -79,7 +80,7 @@ def fancy_pca(images, labels, alpha_std=0.1):
     print('Start Jittering')
     pca_images,pca_labels = images.copy(),labels.copy()
     for img,lbl in zip(images, labels):
-        orig_img = img.numpy().copy()
+        orig_img = np.array(img, dtype=np.float).copy()
         # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
         img_rs = np.reshape(img, (-1, 3))
         img_centered = img_rs - IMAGENET_MEAN
@@ -101,8 +102,9 @@ def fancy_pca(images, labels, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
+            minmax_scale(orig_img[..., idx], feature_range=(0., 255.), copy=False)
         # 0~255(rgb픽셀값) 범위로 값 재설정
-        pca_img = np.clip(orig_img, 0.0, 255.0)
+        pca_img = orig_img
         pca_images.append(pca_img)
         pca_labels.append(lbl)
     print('End jittering')
@@ -228,9 +230,9 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
     images = resize_images(filepaths)
-    images, labels = fancy_pca(images, labels)
-    images, labels = crop_image(images, labels)
     images, labels = flip_image(images, labels)
+    images, labels = crop_image(images, labels)
+    images, labels = fancy_pca(images, labels)
     test_X, test_Y = make_dataset(images, labels)
 
     # 클래스명 출력을 위해 디렉토리명 저장

@@ -11,6 +11,8 @@ import tensorflow_addons as tfa
 import numpy as np
 import random
 
+from sklearn.preprocessing import minmax_scale
+
 RANDOM_SEED = 602
 # random.seed(RANDOM_SEED)
 # tf.random.set_seed(RANDOM_SEED)
@@ -70,7 +72,7 @@ def resize_images(imgpaths):
     for img in imgpaths:
         img = tf.io.read_file(img)
         img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize(img, size=(256, 256), method=tf.image.ResizeMethod.LANCZOS5)
+        img = tf.image.resize_with_crop_or_pad(img, target_height=256, target_width=256)
         images.append(img)
     # print('end resizing')
     return images
@@ -79,9 +81,9 @@ def resize_images(imgpaths):
 # RGB jittering
 def fancy_pca(images, labels, alpha_std=0.1):
     # print('Start Jittering')
-    pca_images,pca_labels = images.copy(),labels.copy()
-    for img,lbl in zip(images, labels):
-        orig_img = img.numpy().copy()
+    pca_images, pca_labels = images.copy(), labels.copy()
+    for img, lbl in zip(images, labels):
+        orig_img = np.array(img, dtype=np.float).copy()
 
         # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
         img_rs = np.reshape(img, (-1, 3))
@@ -110,9 +112,10 @@ def fancy_pca(images, labels, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
+            minmax_scale(orig_img[..., idx], feature_range=(0., 255.), copy=False)
 
         # 0~255(rgb픽셀값) 범위로 값 재설정
-        pca_img = np.clip(orig_img, 0.0, 255.0)
+        pca_img = orig_img
         pca_images.append(pca_img)
         pca_labels.append(lbl)
     # print('End jittering')
@@ -320,9 +323,9 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 fpaths, lbls = filepaths[i * 32:(i + 1) * 32], list(labels[i * 32:(i + 1) * 32])
 
             imgs = resize_images(fpaths)
-            imgs, lbls = fancy_pca(imgs, lbls)
-            imgs, lbls = crop_image(imgs, lbls)
             imgs, lbls = flip_image(imgs, lbls)
+            imgs, lbls = crop_image(imgs, lbls)
+            imgs, lbls = fancy_pca(imgs, lbls)
             train_X, train_Y = make_dataset(imgs, lbls)
 
             # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch

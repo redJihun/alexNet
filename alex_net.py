@@ -45,7 +45,7 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 def load_imagepaths(path):
     imagepaths, labels = list(), list()
     label = 0
-    classes = sorted(os.walk(path).__next__()[1])
+    classes = os.walk(path).__next__()[1]
     for c in classes:
         c_dir = os.path.join(path, c)
         walk = os.walk(c_dir).__next__()
@@ -299,7 +299,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     )
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
+    lr_temp = LR_INIT
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()
@@ -309,6 +309,9 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
     for epoch in range(epochs):
+        if epoch % 10 == 0 and lr_temp >= 1e-5:
+            lr_temp /= 10;
+        optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
         print('epoch {}'.format(epoch+1))
         # 몇 번째 batch 수행 중인지 확인 위한 변수
         foo = 1

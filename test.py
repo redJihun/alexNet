@@ -47,7 +47,7 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 def load_imagepaths(path):
     imagepaths, labels = list(), list()
     label = 0
-    classes = sorted(os.walk(path).__next__()[1])
+    classes = os.walk(path).__next__()[1]
     for c in classes:
         c_dir = os.path.join(path, c)
         walk = os.walk(c_dir).__next__()
@@ -64,20 +64,20 @@ def load_imagepaths(path):
 # 256x256으로 이미지 다운샘플링
 def resize_images(imgpaths):
     # Read images from disk & resize
-    print('start resizing image')
+    # print('start resizing image')
     images = list()
     for img in imgpaths:
         img = tf.io.read_file(img)
         img = tf.image.decode_jpeg(img, channels=3)
         img = tf.image.resize_with_crop_or_pad(img, target_height=256, target_width=256)
         images.append(img)
-    print('end resizing')
+    # print('end resizing')
     return images
 
 
 # RGB jittering
 def fancy_pca(images, labels, alpha_std=0.1):
-    print('Start Jittering')
+    # print('Start Jittering')
     pca_images,pca_labels = images.copy(),labels.copy()
     for img,lbl in zip(images, labels):
         orig_img = np.array(img, dtype=np.float).copy()
@@ -107,62 +107,63 @@ def fancy_pca(images, labels, alpha_std=0.1):
         pca_img = orig_img
         pca_images.append(pca_img)
         pca_labels.append(lbl)
-    print('End jittering')
+    # print('End jittering')
     return pca_images, pca_labels
 
 
 # horizontal reflection
 def flip_image(images, labels):
-    print('Start flipping')
+    # print('Start flipping')
     flipped_images,flipped_labels = images.copy(),labels.copy()
     for img,lbl in zip(images,labels):
         flipped_image = tf.image.flip_left_right(img)
         flipped_images.append(flipped_image)
         flipped_labels.append(lbl)
-    print('End flipping')
+    # print('End flipping')
     return flipped_images, flipped_labels
 
 
 # Image cropping
 def crop_image(images, labels):
-    print('Start cropping')
+    # print('Start cropping')
     cropped_images, cropped_labels = list(), list()
     for img,label in zip(images,labels):
         # # left-top
-        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # # right-top
-        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # center
         cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
         # # left-bottom
-        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # # right-bottom
-        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
-    print('End cropping')
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
+    # print('End cropping')
     return cropped_images, cropped_labels
 
 
 # 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
 def make_dataset(images, labels):
-    print('Start making dataset')
+    # print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
-    foo = list(zip(images, labels))
-    random.Random(RANDOM_SEED).shuffle(foo)
-    images, labels = zip(*foo)
+    # foo = list(zip(images, labels))
+    # random.Random(RANDOM_SEED).shuffle(foo)
+    # images, labels = zip(*foo)
 
     # Convert to Tensor
     test_X, test_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
-    print('End making dataset')
+
+    # print('End making dataset')
     return test_X, test_Y
 ########################################################################################################################
 
@@ -229,14 +230,25 @@ def loss(name, x, y, param):
 def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
+    cv2.imshow('test', tf.image.decode_jpeg(tf.io.read_file(filepaths[0])).numpy() )
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
     images = resize_images(filepaths)
-    images, labels = flip_image(images, labels)
+    cv2.imshow('test', np.array(images[0]))
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    # images, labels = flip_image(images, labels)
     images, labels = crop_image(images, labels)
-    images, labels = fancy_pca(images, labels)
+    cv2.imshow('test', np.array(images[0]))
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    # images, labels = fancy_pca(images, labels)
     test_X, test_Y = make_dataset(images, labels)
 
     # 클래스명 출력을 위해 디렉토리명 저장
     dirs = list()
+
     for dir in os.walk(TEST_IMG_DIR).__next__()[1]:
         dirs.append(dir)
 
@@ -244,16 +256,19 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
     loaded_param = {key: loaded_param[key].item() for key in loaded_param}
     _, prediction = loss(name='best_model', x=test_X, y=test_Y, param=loaded_param['arr_0'])
+
     test_X, test_Y = tf.data.Dataset.from_tensor_slices(test_X), tf.data.Dataset.from_tensor_slices(test_Y)
     accs = list()
 
+
     for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
+        print(y,pred)
         print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
-        cv2.imshow('test', x)
+        cv2.imshow('test', np.array(x, dtype=np.float))
         cv2.waitKey(0)
         cv2.destroyAllWindows()
         accs.append(1 if y == pred else 0)
-    print('Test accuracy = {}'.format(sum(accs)/len(accs)))
+    print('Test accuracy = {}'.format(sum(accs) / len(accs)))
 
 
 test()

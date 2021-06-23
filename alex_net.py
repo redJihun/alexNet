@@ -306,7 +306,8 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
     # lr_temp = LR_INIT
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
+    # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')
+    optimizer = tf.optimizers.SGD(momentum=MOMENTUM, learning_rate=0.001, name='optimizer')
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()
@@ -343,12 +344,12 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
             for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
                 # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
                 # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
-                optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step, epoch), var_list=parameters)
+                optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
                 foo += 1
                 step += 1
     # Save the updated parameters(weights, biases)
         if (epoch+1) % 10 == 0:
-            np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch)), parameters)
+            np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
 
 for k in range(5):
     step = 1

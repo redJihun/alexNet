@@ -107,7 +107,7 @@ def fancy_pca(images, labels, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
-            minmax_scale(orig_img[..., idx], feature_range=(0., 255.), copy=False)
+            minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = orig_img
         pca_images.append(pca_img)
@@ -236,20 +236,23 @@ def loss(name, x, y, param):
 def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
-    cv2.imshow('test', tf.image.decode_jpeg(tf.io.read_file(filepaths[0])).numpy() )
+    cv2.imshow('test', tf.image.decode_jpeg(tf.io.read_file(filepaths[-1])).numpy() )
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
     images = resize_images(filepaths)
-    cv2.imshow('test', np.array(images[0]))
+    cv2.imshow('test', np.array(images[-1]))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     # images, labels = flip_image(images, labels)
     images, labels = crop_image(images, labels)
-    cv2.imshow('test', np.array(images[0]))
+    cv2.imshow('test', np.array(images[-1]))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    # images, labels = fancy_pca(images, labels)
+    images, labels = fancy_pca(images, labels)
+    cv2.imshow('test', np.array(images[-1]))
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     test_X, test_Y = make_dataset(images, labels)
 
     # 클래스명 출력을 위해 디렉토리명 저장

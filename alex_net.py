@@ -118,7 +118,7 @@ def fancy_pca(images, labels, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
-            minmax_scale(orig_img[..., idx], feature_range=(0., 255.), copy=False)
+            minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
 
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = orig_img
@@ -306,6 +306,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
     lr_temp = LR_INIT
+    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()
@@ -317,7 +318,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     for epoch in range(epochs):
         if (epoch+1) % 10 == 0 and lr_temp >= 1e-5:
             lr_temp /= 10;
-        optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+            optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
         print('epoch {}'.format(epoch+1))
         # 몇 번째 batch 수행 중인지 확인 위한 변수
         foo = 1
@@ -334,7 +335,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
             imgs = resize_images(fpaths)
             imgs, lbls = flip_image(imgs, lbls)
             imgs, lbls = crop_image(imgs, lbls)
-            imgs, lbls = fancy_pca(imgs, lbls)
+            # imgs, lbls = fancy_pca(imgs, lbls)
             train_X, train_Y = make_dataset(imgs, lbls)
 
             # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch

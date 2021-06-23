@@ -192,7 +192,7 @@ def make_dataset(images, labels):
 # 원 라벨 y와 예측된 라벨을 비교하여 계산된 loss, accuracy 리턴하는 함수
 # 모델 구조가 포함되었음
 # 매개변수로 현재 수행 중인 epoch(=step), 입력된 이미지 데이터(=x), 입력된 데이터의 라벨(=y), 가중치 dictionary(=param) 가 주어짐
-def loss(batch_num, x, y, param, step):
+def loss(batch_num, x, y, param, step, epoch):
     inputs = tf.constant(x, name='inputs')
 
     # layer 1
@@ -251,7 +251,7 @@ def loss(batch_num, x, y, param, step):
 
     accuracy = np.sum(predict == target) / len(target)
 
-    print('step {}\tbatch{}\t:\tloss={}\taccuracy={}'.format(step, batch_num, loss.numpy(), accuracy))
+    print('epoch {}\tstep {}\tbatch {}\t:\tloss={}\taccuracy={}'.format(epoch, step, batch_num, loss.numpy(), accuracy))
 
     return loss
 ########################################################################################################################
@@ -343,7 +343,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
             for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
                 # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
                 # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
-                optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step), var_list=parameters)
+                optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step, epoch), var_list=parameters)
                 foo += 1
                 step += 1
     # Save the updated parameters(weights, biases)

@@ -97,9 +97,9 @@ def test(image, ckpts_path=OUTPUT_ROOT_DIR):
 
 if __name__ == "__main__":
     camera = cv2.VideoCapture(0);
-    while True:
+    while cv2.waitKey(1) != ord('q'):
         f, img = camera.read();
         pred = test(image=img)
         cv2.imshow(pred, img);
-        if (cv2.waitKey(5) != -1):
-            break;
+    camera.release()
+    cv2.destroyAllWindows()

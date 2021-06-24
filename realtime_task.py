@@ -11,6 +11,8 @@ import numpy as np
 import cv2
 
 # Data directory
+from sklearn.preprocessing import minmax_scale
+
 INPUT_ROOT_DIR = './input/task'
 TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
 OUTPUT_ROOT_DIR = './output/task'
@@ -96,18 +98,39 @@ def load_param(ckpts_path=OUTPUT_ROOT_DIR):
 def test(image, loaded_param, dirs):
     img = resize_image(image)
 
-    pred = prediction(tf.cast(tf.reshape(img, [-1,227,227,3]), dtype=tf.float32), loaded_param['arr_0'])
+    pred = prediction(tf.cast(tf.reshape(img, [-1, 227, 227, 3]), dtype=tf.float32), loaded_param['arr_0'])
 
     return dirs[pred[0]]
 
+def minmax(images):
+    # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
+    scaled_img = np.array(img).copy()
+    for idx in range(3):
+        scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(-1, 1))
+
+    return scaled_img
 
 if __name__ == "__main__":
     camera = cv2.VideoCapture(0);
     classes, param = load_param()
+    f, img = camera.read();
+    pred = test(image=img, loaded_param=param, dirs=classes)
+    # foo = [1,2,3,4,5]
+    # pred = 0
+    # bar = 0
 
     while cv2.waitKey(1) != ord('q'):
         f, img = camera.read();
-        pred = test(image=img, loaded_param=param, dirs=classes)
+        new = test(image=img, loaded_param=param, dirs=classes)
+        # new = bar
+        if pred != new:
+            cv2.destroyWindow(pred)
+            # cv2.destroyWindow('{}'.format(foo[pred]))
+            pred = new
+
         cv2.imshow(pred, img);
+        # cv2.imshow('{}'.format(foo[pred]), img)
+        # bar += 1
+
     camera.release()
     cv2.destroyAllWindows()

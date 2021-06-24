@@ -20,7 +20,7 @@ RANDOM_SEED = 602
 
 # Hyper-parameters
 NUM_EPOCHS = 90
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
@@ -112,7 +112,7 @@ def fancy_pca(images, labels, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
-            minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
+            # minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
 
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = orig_img
@@ -120,6 +120,18 @@ def fancy_pca(images, labels, alpha_std=0.1):
         pca_labels.append(lbl)
     # print('End jittering')
     return pca_images, pca_labels
+
+
+def minmax(images):
+    scaled_images = list()
+    for img in images:
+        # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
+        scaled_img = np.array(img).copy()
+        for idx in range(3):
+            scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(-1, 1))
+        scaled_images.append(scaled_img)
+
+    return scaled_images
 
 
 # horizontal reflection
@@ -238,8 +250,8 @@ def loss(batch_num, x, y, param, step, epoch):
 
     # 멀티 라벨로 모델 평가 시에 수렴되지 않는 문제 발생(추가적인 연구 필요, 아마 데이터의 클래스 개수가 너무 적어 그런것으로 예상)
     # 단일 라벨로 평가(sparse_softmax_cross_entropy_with_logits)
-    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
-    # loss = tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=predict)
+    # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
+    loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(y, depth=NUM_CLASSES), logits=logits)
     loss = tf.reduce_mean(loss)
     target = y
 
@@ -299,8 +311,8 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # )
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
-    # lr_temp = LR_INIT
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=LR_INIT, weight_decay=LR_DECAY, name='optimizer')
+    lr_temp = LR_INIT
+    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
     # optimizer = tf.optimizers.SGD(momentum=MOMENTUM, learning_rate=0.001, name='optimizer')
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
@@ -311,9 +323,9 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
     for epoch in range(epochs):
-        # if (epoch+1) % 10 == 0 and lr_temp >= 1e-5:
-        #     lr_temp /= 10;
-        #     optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+        if (epoch+1) % 10 == 0 and lr_temp >= 1e-5:
+            lr_temp /= 10;
+            optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
         print('epoch {}'.format(epoch+1))
         # 몇 번째 batch 수행 중인지 확인 위한 변수
         foo = 1
@@ -331,6 +343,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
             imgs, lbls = flip_image(imgs, lbls)
             imgs, lbls = crop_image(imgs, lbls)
             imgs, lbls = fancy_pca(imgs, lbls)
+            imgs = minmax(imgs)
             train_X, train_Y = make_dataset(imgs, lbls)
 
             # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch

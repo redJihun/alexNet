@@ -26,7 +26,7 @@ MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
 NUM_CLASSES = 3
-IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
+# IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
 INPUT_ROOT_DIR = './input/task'
@@ -80,15 +80,28 @@ def resize_images(imgpaths):
     return images
 
 
+def minmax(images):
+    scaled_images = list()
+    for img in images:
+        # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
+        scaled_img = np.array(img).copy()
+        for idx in range(3):
+            scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(-1, 1))
+        scaled_images.append(scaled_img)
+
+    return scaled_images
+
+
 # RGB jittering
-def fancy_pca(images, labels, alpha_std=0.1):
+def fancy_pca(images, labels, imgmean, alpha_std=0.1):
     # print('Start Jittering')
     pca_images,pca_labels = images.copy(),labels.copy()
     for img,lbl in zip(images, labels):
         orig_img = np.array(img, dtype=np.float).copy()
         # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
         img_rs = np.reshape(img, (-1, 3))
-        img_centered = img_rs - IMAGENET_MEAN
+        # img_centered = img_rs - IMAGENET_MEAN
+        img_centered = img_rs - imgmean
         # 해당 이미지의 공분산 행렬 구함
         img_cov = np.cov(img_centered, rowvar=False)
         # 고유벡터, 고유값 구함
@@ -107,7 +120,8 @@ def fancy_pca(images, labels, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
-            minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
+            # orig_img[..., idx] = minmax_scale(np.array(orig_img[..., idx]), feature_range=(0, 255))
+            # minmax_scale(np.array(orig_img[..., idx], dtype=np.uint16), feature_range=(0, 255), copy=False)
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = orig_img
         pca_images.append(pca_img)
@@ -241,22 +255,44 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     cv2.destroyAllWindows()
 
     images = resize_images(filepaths)
+    print(images[-1])
+    print(type(images[-1]))
+
+    imgmean = list()
+    imgmean.append(np.mean(images[:][:][:][0]))
+    imgmean.append(np.mean(images[:][:][:][1]))
+    imgmean.append(np.mean(images[:][:][:][2]))
+
     cv2.imshow('resize', np.array(images[-1]))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
     images, labels = flip_image(images, labels)
+    print(images[-1])
+    print(type(images[-1]))
     cv2.imshow('flip', np.array(images[-1]))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
     images, labels = crop_image(images, labels)
+    print(images[-1])
+    print(type(images[-1]))
     cv2.imshow('crop', np.array(images[-1]))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    images, labels = fancy_pca(images, labels)
+
+    images, labels = fancy_pca(images, labels, imgmean)
+    print(images[-1])
+    print(type(images[-1]))
     cv2.imshow('pca', np.array(images[-1]))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+    images = minmax(images)
+
     test_X, test_Y = make_dataset(images, labels)
+    print(images[-1])
+    print(type(images[-1]))
     cv2.imshow('dataset', np.array(test_X[-1]))
     cv2.waitKey(0)
     cv2.destroyAllWindows()

@@ -20,7 +20,7 @@ RANDOM_SEED = 602
 
 # Hyper-parameters
 NUM_EPOCHS = 90
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
@@ -300,7 +300,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
     # lr_temp = LR_INIT
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.0001, weight_decay=LR_DECAY, name='optimizer')
+    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=LR_INIT, weight_decay=LR_DECAY, name='optimizer')
     # optimizer = tf.optimizers.SGD(momentum=MOMENTUM, learning_rate=0.001, name='optimizer')
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화

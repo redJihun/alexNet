@@ -78,8 +78,7 @@ def prediction(x, param):
     return predict
 
 
-def test(image, ckpts_path=OUTPUT_ROOT_DIR):
-    img = resize_image(image)
+def load_param(ckpts_path=OUTPUT_ROOT_DIR):
 
     # 클래스명 출력을 위해 디렉토리명 저장
     dirs = list()
@@ -88,8 +87,15 @@ def test(image, ckpts_path=OUTPUT_ROOT_DIR):
         dirs.append(dir)
 
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, test set 에서 loss 계산
-    loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
+    loaded_param = np.load(os.path.join(ckpts_path, 'best_model.npz'), allow_pickle=True)
     loaded_param = {key: loaded_param[key].item() for key in loaded_param}
+
+    return dirs, loaded_param
+
+
+def test(image, loaded_param, dirs):
+    img = resize_image(image)
+
     pred = prediction(tf.cast(tf.reshape(img, [-1,227,227,3]), dtype=tf.float32), loaded_param['arr_0'])
 
     return dirs[pred[0]]
@@ -97,9 +103,11 @@ def test(image, ckpts_path=OUTPUT_ROOT_DIR):
 
 if __name__ == "__main__":
     camera = cv2.VideoCapture(0);
+    classes, param = load_param()
+
     while cv2.waitKey(1) != ord('q'):
         f, img = camera.read();
-        pred = test(image=img)
+        pred = test(image=img, loaded_param=param, dirs=classes)
         cv2.imshow(pred, img);
     camera.release()
     cv2.destroyAllWindows()

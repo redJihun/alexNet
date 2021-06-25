@@ -246,16 +246,16 @@ def loss(batch_num, x, y, param, step, epoch):
     logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
     # 출력된 logits는 라벨을 예측한 형태가 아닌 각 클래스에 대한 값이 존재하는 형태, shape[데이터 개수, 클래스 개수]
     # argmax를 적용함으로써, 단일 라벨을 출력하는 형태로 변경, y(ground_truth) 와 비교해 loss 계산
-    predict = tf.argmax(logits, 1).numpy()
+    predict = tf.argmax(tf.nn.softmax(logits, 1), 1).numpy()
 
     # 멀티 라벨로 모델 평가 시에 수렴되지 않는 문제 발생(추가적인 연구 필요, 아마 데이터의 클래스 개수가 너무 적어 그런것으로 예상)
     # 단일 라벨로 평가(sparse_softmax_cross_entropy_with_logits)
     # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
-    loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(y, depth=NUM_CLASSES), logits=logits)
+    # loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(y, depth=NUM_CLASSES), logits=logits)
+    loss = tf.keras.losses.hinge(tf.one_hot(y, depth=NUM_CLASSES), tf.nn.softmax(logits, 1))
     loss = tf.reduce_mean(loss)
-    target = y
 
-    accuracy = np.sum(predict == target) / len(target)
+    accuracy = np.sum(predict == y) / len(y)
 
     print('epoch {}\tstep {}\tbatch {}\t:\tloss={}\taccuracy={}'.format(epoch, step, batch_num, loss.numpy(), accuracy))
 
@@ -312,8 +312,9 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
     lr_temp = LR_INIT
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+    # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')      # loss: 1.08... acc: 0.33
     # optimizer = tf.optimizers.SGD(momentum=MOMENTUM, learning_rate=0.001, name='optimizer')
+    optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')     #
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()
@@ -323,9 +324,10 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
     for epoch in range(epochs):
-        if (epoch+1) % 10 == 0 and lr_temp >= 1e-5:
-            lr_temp /= 10;
-            optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+        # if (epoch+1) % 10 == 0 and lr_temp >= 1e-5:
+        #     lr_temp /= 10;
+        # #     optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+        #     optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
         print('epoch {}'.format(epoch+1))
         # 몇 번째 batch 수행 중인지 확인 위한 변수
         foo = 1
@@ -354,6 +356,10 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
                 foo += 1
                 step += 1
+        if lr_temp >= 1e-5:
+            lr_temp /= 10;
+        #     optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+            optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
     # Save the updated parameters(weights, biases)
         if (epoch+1) % 10 == 0:
             np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)

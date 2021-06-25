@@ -128,25 +128,25 @@ def crop_image(images, labels):
     cropped_images, cropped_labels = list(), list()
     for img,label in zip(images,labels):
         # # left-top
-        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # # right-top
-        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # center
         cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
         # # left-bottom
-        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # # right-bottom
-        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
     # print('End cropping')
     return cropped_images, cropped_labels
 
@@ -163,7 +163,7 @@ def make_dataset(images, labels):
     # Convert to Tensor
     valid_X, valid_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
 
-    valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X).batch(batch_size=BATCH_SIZE), tf.data.Dataset.from_tensor_slices(tensors=valid_Y).batch(batch_size=BATCH_SIZE)
+    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X).batch(batch_size=BATCH_SIZE), tf.data.Dataset.from_tensor_slices(tensors=valid_Y).batch(batch_size=BATCH_SIZE)
     # print('End making dataset')
     return valid_X, valid_Y
 ########################################################################################################################
@@ -218,12 +218,13 @@ def loss(name, x, y, param):
     logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
     predict = tf.argmax(logits, 1).numpy()
 
-    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
+    # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
+    loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(y, depth=NUM_CLASSES), logits=logits)
     loss = tf.reduce_mean(loss)
     target = y
     accuracy = np.sum(predict == target) / len(target)
 
-    print('model\t=\t{}\tloss={}\taccuracy={}'.format(name, loss.numpy(), accuracy))
+    print('model\t=\t{}\tloss={}\taccuracy={}\n'.format(name, loss.numpy(), accuracy))
 
     return loss, accuracy
 
@@ -249,24 +250,24 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
         losses, accs = list(), list()
 
-        for i in range(int(np.ceil(len(filepaths)/32))):
-            # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
-            if i == int(np.ceil(len(filepaths) / 32)) - 1:
-                fpaths, lbls = filepaths[i * 32:], list(labels[i * 32:])
-            # 그 외의 split은 32의 배수로 나누어서 로드
-            else:
-                fpaths, lbls = filepaths[i * 32:(i + 1) * 32], list(labels[i * 32:(i + 1) * 32])
-
-            imgs = resize_images(fpaths)
-            imgs, lbls = flip_image(imgs, lbls)
-            imgs, lbls = crop_image(imgs, lbls)
-            imgs, lbls = fancy_pca(imgs, lbls)
-            valid_X, valid_Y = make_dataset(imgs, lbls)
-
-            for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
-                current_loss, current_acc = loss(name=model, x=batch_X, y=batch_Y, param=loaded_param['arr_0'])
-                losses.append(current_loss)
-                accs.append(current_acc)
+        # for i in range(int(np.ceil(len(filepaths)/32))):
+        #     # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
+        #     if i == int(np.ceil(len(filepaths) / 32)) - 1:
+        #         fpaths, lbls = filepaths[i * 32:], list(labels[i * 32:])
+        #     # 그 외의 split은 32의 배수로 나누어서 로드
+        #     else:
+        #         fpaths, lbls = filepaths[i * 32:(i + 1) * 32], list(labels[i * 32:(i + 1) * 32])
+        #
+        imgs = resize_images(filepaths)
+        # imgs, lbls = flip_image(imgs, lbls)
+        imgs, lbls = crop_image(imgs, labels)
+        # imgs, lbls = fancy_pca(imgs, lbls)
+        valid_X, valid_Y = make_dataset(imgs, lbls)
+        #
+        #     for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
+        current_loss, current_acc = loss(name=model, x=valid_X, y=valid_Y, param=loaded_param['arr_0'])
+        losses.append(current_loss)
+        accs.append(current_acc)
 
         # 저장된 최소 loss보다 작으면 best model 업데이트
         if np.mean(losses) < min_loss:

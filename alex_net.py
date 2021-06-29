@@ -152,25 +152,25 @@ def crop_image(images, labels):
     cropped_images, cropped_labels = list(), list()
     for img, label in zip(images, labels):
         # # left-top
-        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # # right-top
-        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # center
         cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
         # # left-bottom
-        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # # right-bottom
-        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
     # print('End cropping')
     return cropped_images, cropped_labels
 
@@ -252,7 +252,8 @@ def loss(batch_num, x, y, param, step, epoch):
     # 단일 라벨로 평가(sparse_softmax_cross_entropy_with_logits)
     # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
     # loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(y, depth=NUM_CLASSES), logits=logits)
-    loss = tf.keras.losses.hinge(tf.one_hot(y, depth=NUM_CLASSES), tf.nn.softmax(logits, 1))
+    # loss = tf.keras.losses.hinge(tf.one_hot(y, depth=NUM_CLASSES), tf.nn.softmax(logits, 1))
+    loss = tf.keras.losses.categorical_hinge(tf.one_hot(y, depth=NUM_CLASSES), tf.nn.softmax(logits, 1))
     loss = tf.reduce_mean(loss)
 
     accuracy = np.sum(predict == y) / len(y)
@@ -311,10 +312,11 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # )
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
-    lr_temp = LR_INIT
-    # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=0.001, weight_decay=LR_DECAY, name='optimizer')      # loss: 1.08... acc: 0.33
+    lr_temp = LR_INIT / 10
+    # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')      # loss: 1.08... acc: 0.33
     # optimizer = tf.optimizers.SGD(momentum=MOMENTUM, learning_rate=0.001, name='optimizer')
-    optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')     #
+    # optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=0.001, name='RMSprop')     #
+    optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()
@@ -324,10 +326,6 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
     for epoch in range(epochs):
-        # if (epoch+1) % 10 == 0 and lr_temp >= 1e-5:
-        #     lr_temp /= 10;
-        # #     optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
-        #     optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
         print('epoch {}'.format(epoch+1))
         # 몇 번째 batch 수행 중인지 확인 위한 변수
         foo = 1
@@ -344,7 +342,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
             imgs = resize_images(fpaths)
             imgs, lbls = flip_image(imgs, lbls)
             imgs, lbls = crop_image(imgs, lbls)
-            imgs, lbls = fancy_pca(imgs, lbls)
+            # imgs, lbls = fancy_pca(imgs, lbls)
             imgs = minmax(imgs)
             train_X, train_Y = make_dataset(imgs, lbls)
 
@@ -356,12 +354,13 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
                 foo += 1
                 step += 1
-        if lr_temp >= 1e-5:
+        if (epoch+1) % 2 == 0 and lr_temp >= 1e-6:
             lr_temp /= 10;
-        #     optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
-            optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
+            optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+        #     optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
     # Save the updated parameters(weights, biases)
-        if (epoch+1) % 10 == 0:
+    #     if (epoch+1) % 10 == 0:
+        if (epoch + 1) % 2 == 0:
             np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
 
 for k in range(5):

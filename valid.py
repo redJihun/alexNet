@@ -259,9 +259,9 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         #         fpaths, lbls = filepaths[i * 32:(i + 1) * 32], list(labels[i * 32:(i + 1) * 32])
         #
         imgs = resize_images(filepaths)
-        # imgs, lbls = flip_image(imgs, lbls)
+        # imgs, lbls = flip_image(imgs, labels)
         imgs, lbls = crop_image(imgs, labels)
-        # imgs, lbls = fancy_pca(imgs, lbls)
+        imgs, lbls = fancy_pca(imgs, lbls)
         valid_X, valid_Y = make_dataset(imgs, lbls)
         #
         #     for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
@@ -270,8 +270,8 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         accs.append(current_acc)
 
         # 저장된 최소 loss보다 작으면 best model 업데이트
-        if np.mean(losses) < min_loss:
-            min_loss, accuracy = np.mean(losses), np.mean(accs)
+        if np.mean(losses)-np.mean(accs) < min_loss:
+            min_loss, accuracy = np.mean(losses)-np.mean(accs), np.mean(accs)
             best_model = loaded_param['arr_0'].copy()
 
     # 최종으로 업데이트된 best model을 저장

@@ -248,12 +248,17 @@ def loss(batch_num, x, y, param, step, epoch):
     # argmax를 적용함으로써, 단일 라벨을 출력하는 형태로 변경, y(ground_truth) 와 비교해 loss 계산
     predict = tf.argmax(tf.nn.softmax(logits, 1), 1).numpy()
 
+    threshold = 0.5
+    softmax_scores = tf.nn.softmax(logits=logits)
+    other_class_idx = tf.cast(tf.shape(softmax_scores)[0] + 1, tf.int64)
+    other_class_idx = tf.tile(tf.expand_dims(other_class_idx, 0), [tf.shape(softmax_scores)[0]])
+
     # 멀티 라벨로 모델 평가 시에 수렴되지 않는 문제 발생(추가적인 연구 필요, 아마 데이터의 클래스 개수가 너무 적어 그런것으로 예상)
     # 단일 라벨로 평가(sparse_softmax_cross_entropy_with_logits)
-    # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
     # loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(y, depth=NUM_CLASSES), logits=logits)
     # loss = tf.keras.losses.hinge(tf.one_hot(y, depth=NUM_CLASSES), tf.nn.softmax(logits, 1))
-    loss = tf.keras.losses.categorical_hinge(tf.one_hot(y, depth=NUM_CLASSES), tf.nn.softmax(logits, 1))
+    # loss = tf.keras.losses.categorical_hinge(tf.one_hot(y, depth=NUM_CLASSES), tf.nn.softmax(logits, 1))
     loss = tf.reduce_mean(loss)
 
     accuracy = np.sum(predict == y) / len(y)
@@ -302,7 +307,7 @@ def init_params():
 
 
 
-def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
     # 적용 방법의 추가적인 연구가 필요.
     # lr_scheduler = tf.optimizers.schedules.PolynomialDecay(
@@ -331,16 +336,16 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
         foo = 1
         # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
         # 즉, 1epoch에 16번 가중치 업데이트가 이루어짐
-        for i in range(int(np.ceil(len(filepaths)/32))):
+        for i in range(int(np.ceil(len(filepaths)/BATCH_SIZE))):
             # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
-            if i == int(np.ceil(len(filepaths) / 32)) - 1:
-                fpaths, lbls = filepaths[i * 32:], list(labels[i * 32:])
+            if i == int(np.ceil(len(filepaths) / BATCH_SIZE)) - 1:
+                fpaths, lbls = filepaths[i * BATCH_SIZE:], list(labels[i * BATCH_SIZE:])
             # 그 외의 split은 32의 배수로 나누어서 로드
             else:
-                fpaths, lbls = filepaths[i * 32:(i + 1) * 32], list(labels[i * 32:(i + 1) * 32])
+                fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
 
             imgs = resize_images(fpaths)
-            imgs, lbls = flip_image(imgs, lbls)
+            # imgs, lbls = flip_image(imgs, lbls)
             imgs, lbls = crop_image(imgs, lbls)
             # imgs, lbls = fancy_pca(imgs, lbls)
             imgs = minmax(imgs)
@@ -365,4 +370,5 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
 for k in range(5):
     step = 1
-    train(epochs=NUM_EPOCHS, step=step)
+    augmentation = input('Augmentation을 진행하시겠습니까?(y/n) : ')
+    train(epochs=NUM_EPOCHS, step=step, augmentation=augmentation)

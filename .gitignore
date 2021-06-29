@@ -133,5 +133,5 @@ train/
 .idea/
 input/
 output/
-alex_net_with_tape.py
+capture_from_url.py
 chromedriver

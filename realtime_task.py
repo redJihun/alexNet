@@ -2,6 +2,8 @@
 import os
 
 # Deep-learning framework
+import sys
+
 import tensorflow as tf
 
 # Manipulate
@@ -118,20 +120,25 @@ if __name__ == "__main__":
     # foo = [1,2,3,4,5]
     # pred = 0
     # bar = 0
+    count = 0
 
     while cv2.waitKey(1) != ord('q'):
         f, img = camera.read();
-        pred = test(image=img, loaded_param=param, dirs=classes)
         # new = bar
         # if pred != new:
             # cv2.destroyWindow(pred)
             # cv2.destroyWindow('{}'.format(foo[pred]))
             # pred = new
+
+        if count%10==0:
+            pred = test(image=img, loaded_param=param, dirs=classes)
+
         cv2.putText(img, pred, (300, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
         cv2.imshow('Prediction', img);
         # cv2.imshow('{}'.format(foo[pred]), img)
         # bar += 1
+        count += 1
 
     camera.release()
     cv2.destroyAllWindows()

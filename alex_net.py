@@ -348,7 +348,7 @@ def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
             # imgs, lbls = flip_image(imgs, lbls)
             imgs, lbls = crop_image(imgs, lbls)
             # imgs, lbls = fancy_pca(imgs, lbls)
-            # imgs = minmax(imgs, -1, 1)
+            imgs = minmax(imgs, -1.0, 1.0)
             train_X, train_Y = make_dataset(imgs, lbls)
 
             # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
@@ -359,7 +359,7 @@ def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
                 foo += 1
                 step += 1
-        if (epoch+1) % 2 == 0 and lr_temp >= 1e-6:
+        if (epoch+1) % 3 == 0 and lr_temp >= 1e-6:
             lr_temp /= 10;
             optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
         #     optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
@@ -370,5 +370,6 @@ def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
 for k in range(5):
     step = 1
-    augmentation = input('Augmentation을 진행하시겠습니까?(y/n) : ')
+    # augmentation = input('Augmentation을 진행하시겠습니까?(y/n) : ')
+    augmentation = 'n'
     train(epochs=10, step=step, augmentation=augmentation)

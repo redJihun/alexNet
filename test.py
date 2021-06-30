@@ -80,13 +80,13 @@ def resize_images(imgpaths):
     return images
 
 
-def minmax(images):
+def minmax(images, min, max):
     scaled_images = list()
     for img in images:
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         scaled_img = np.array(img).copy()
         for idx in range(3):
-            scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(-1, 1))
+            scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(min, max))
         scaled_images.append(scaled_img)
 
     return scaled_images
@@ -288,7 +288,7 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
-    images = minmax(images)
+    # images = minmax(images, -1, 1)
 
     test_X, test_Y = make_dataset(images, labels)
     # print(images[-1])
@@ -312,11 +312,12 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     accs = list()
 
     for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
-        # print(y,pred)
-        # print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
-        # cv2.imshow('test', np.array(x, dtype=np.uint8))
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        # minmax(x, 0, 255)
+        print(y,pred)
+        print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
+        cv2.imshow('test', np.array(x, dtype=np.uint8))
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
         accs.append(1 if y == pred else 0)
     print('Test accuracy = {}'.format(sum(accs) / len(accs)))
 

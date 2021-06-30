@@ -175,9 +175,9 @@ def crop_image(images, labels):
 def make_dataset(images, labels):
     # print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
-    # foo = list(zip(images, labels))
-    # random.Random(RANDOM_SEED).shuffle(foo)
-    # images, labels = zip(*foo)
+    foo = list(zip(images, labels))
+    random.Random(RANDOM_SEED).shuffle(foo)
+    images, labels = zip(*foo)
 
     # Convert to Tensor
     test_X, test_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
@@ -288,7 +288,7 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
-    images = minmax(images, -1., 1.)
+    # images = minmax(images, -1., 1.)
 
     test_X, test_Y = make_dataset(images, labels)
     # print(images[-1])
@@ -315,6 +315,7 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
         # minmax(x, 0, 255)
         print(y,pred)
         print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
+        cv2.putText(x, dirs[pred], (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 255, 100), 2, cv2.LINE_AA)
         cv2.imshow('test', np.array(x, dtype=np.uint8))
         cv2.waitKey(0)
         cv2.destroyAllWindows()

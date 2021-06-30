@@ -133,7 +133,7 @@ if __name__ == "__main__":
         if count%10==0:
             pred = test(image=img, loaded_param=param, dirs=classes)
 
-        cv2.putText(img, pred, (300, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+        cv2.putText(img, pred, (300, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
 
         cv2.imshow('Prediction', img);
         # cv2.imshow('{}'.format(foo[pred]), img)

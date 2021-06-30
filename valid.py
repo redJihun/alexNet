@@ -57,17 +57,21 @@ def load_imagepaths(path):
         # next directory
         label += 1
 
+    foo = list(zip(imagepaths, labels))
+    random.Random(RANDOM_SEED).shuffle(foo)
+    imagepaths, labels = zip(*foo)
+
     return imagepaths, labels
 
 
 # 256x256으로 이미지 다운샘플링
-def resize_images(imgpaths):
+def resize_images(imgpaths, w, h):
     # Read images from disk & resize
     # print('start resizing image')
     images = list()
     for img in imgpaths:
         image = cv2.imread(img)
-        image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image, dsize=(w, h), interpolation=cv2.INTER_AREA)
         images.append(image)
     # print('end resizing')
     return images
@@ -168,9 +172,9 @@ def make_dataset(images, labels):
     # print('Start making dataset')
 
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
-    foo = list(zip(images, labels))
-    random.Random(RANDOM_SEED).shuffle(foo)
-    images, labels = zip(*foo)
+    # foo = list(zip(images, labels))
+    # random.Random(RANDOM_SEED).shuffle(foo)
+    # images, labels = zip(*foo)
 
     # Convert to Tensor
     valid_X, valid_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
@@ -236,7 +240,7 @@ def loss(name, x, y, param):
     target = y
     accuracy = np.sum(predict == target) / len(target)
 
-    print('model\t=\t{}\tloss={}\taccuracy={}\n'.format(name, loss.numpy(), accuracy))
+    print('model\t=\t{}\tloss={}\taccuracy={}'.format(name, loss.numpy(), accuracy))
 
     return loss, accuracy
 
@@ -253,13 +257,14 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
 
     # Validation step 에서 최소 loss 기록 모델을 best model로 선정
     min_loss = 99999999
+    accuracy = 0
     best_model = dict()
 
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, valid set 에서 loss 계산
     for model in model_paths:
         loaded_param = np.load(model, allow_pickle=True)
         loaded_param = {key: loaded_param[key].item() for key in loaded_param}
-        print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
+        print('\nmodel : {} // {}'.format(model, loaded_param['arr_0']['b8']))
         losses, accs = list(), list()
 
         for i in range(int(np.ceil(len(filepaths)/BATCH_SIZE))):
@@ -270,9 +275,9 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
             else:
                 fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
 
-            imgs = resize_images(fpaths)
+            imgs = resize_images(fpaths, 227, 227)
             # imgs, lbls = flip_image(imgs, labels)
-            imgs, lbls = crop_image(imgs, labels)
+            # imgs, lbls = crop_image(imgs, labels)
             # imgs, lbls = fancy_pca(imgs, lbls)
             # imgs = minmax(imgs, -1, 1)
             valid_X, valid_Y = make_dataset(imgs, lbls)
@@ -283,13 +288,14 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
                 accs.append(current_acc)
 
         # 저장된 최소 loss보다 작으면 best model 업데이트
-        if np.mean(losses)-np.mean(accs) < min_loss:
-            min_loss, accuracy = np.mean(losses)-np.mean(accs), np.mean(accs)
+        if np.mean(losses)-np.mean(accs) < min_loss-accuracy:
+            min_loss, accuracy = np.mean(losses), np.mean(accs)
+            model_name = model
             best_model = loaded_param['arr_0'].copy()
 
     # 최종으로 업데이트된 best model을 저장
     np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
-    print("\nBest model : loss={}\taccuracy={}\n{}".format(min_loss, accuracy, best_model['b8']))
+    print("\nBest model : {}\nloss={}\taccuracy={}\n{}".format(model_name, min_loss, accuracy, best_model['b8']))
 
 
 valid()

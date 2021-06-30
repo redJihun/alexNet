@@ -16,6 +16,7 @@ IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 # Data directory
 INPUT_ROOT_DIR = './input/task'
 TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
+VALID_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'valid')
 OUTPUT_ROOT_DIR = './output/task'
 
 
@@ -62,7 +63,7 @@ def resize_images(imgpaths):
 def flip_image(fpaths):
     print('Flipping...')
     for path in fpaths:
-        print(path)
+        # print(path)
         flipped_image = cv2.imread(path)
         # flipped_image = cv2.cvtColor(flipped_image, cv2.COLOR_BGR2RGB)
         flipped_image = cv2.flip(flipped_image, 1)
@@ -121,10 +122,26 @@ def crop_image(paths):
         img = cv2.imread(path)
         img = cv2.resize(img, dsize=(256, 256), interpolation=cv2.INTER_AREA)
         # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        for x_idx in range(img.shape[0]-227):
-            for y_idx in range(img.shape[1]-227):
-                cropped_image = img[x_idx:x_idx+227, y_idx:y_idx+227]
-                cv2.imwrite(path+'_({},{})cropped.jpeg'.format(x_idx, y_idx), cropped_image)
+        # for x_idx in range(img.shape[0]-227):
+        #     for y_idx in range(img.shape[1]-227):
+        #         cropped_image = img[x_idx:x_idx+227, y_idx:y_idx+227]
+        #         cv2.imwrite(path+'_({},{})cropped.jpeg'.format(x_idx, y_idx), cropped_image)
+        # left-top
+        cropped_image = img[0:227, 0:227]
+        cv2.imwrite(path+'_LT_cropped.jpeg', cropped_image)
+        # right-top
+        cropped_image = img[img.shape[0]-227:, 0:227]
+        cv2.imwrite(path+'_RT_cropped.jpeg', cropped_image)
+        # center
+        cropped_image = img[14:img.shape[0]-15, 14:img.shape[1]-15]
+        cv2.imwrite(path+'_CT_cropped.jpeg', cropped_image)
+        # left-bottom
+        cropped_image = img[0:227, img.shape[1]-227:]
+        cv2.imwrite(path+'_LB_cropped.jpeg', cropped_image)
+        # right-bottom
+        cropped_image = img[img.shape[0]-227:, img.shape[1]-227:]
+        cv2.imwrite(path+'_RB_cropped.jpeg', cropped_image)
+
         os.remove(path)
     print('End Cropping')
 
@@ -133,8 +150,8 @@ def crop_image(paths):
 img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
 resize_images(img_paths)
 img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-flip_image(img_paths)
-img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
 fancy_pca(img_paths)
+img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+flip_image(img_paths)
 img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
 crop_image(img_paths)

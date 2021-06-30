@@ -72,7 +72,7 @@ def resize_images(imgpaths):
     images = list()
     for img in imgpaths:
         image = cv2.imread(img)
-        image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image, dsize=(227, 227), interpolation=cv2.INTER_AREA)
         images.append(image)
     # print('end resizing')
     return images
@@ -179,9 +179,9 @@ def crop_image(images, labels):
 def make_dataset(images, labels):
     # print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
-    foo = list(zip(images, labels))
-    random.Random(RANDOM_SEED).shuffle(foo)
-    images, labels = zip(*foo)
+    # foo = list(zip(images, labels))
+    # random.Random(RANDOM_SEED).shuffle(foo)
+    # images, labels = zip(*foo)
 
     # Convert to Tensor
     train_X, train_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
@@ -307,7 +307,7 @@ def init_params():
 
 
 
-def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
     # 적용 방법의 추가적인 연구가 필요.
     # lr_scheduler = tf.optimizers.schedules.PolynomialDecay(
@@ -346,7 +346,7 @@ def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
             imgs = resize_images(fpaths)
             # imgs, lbls = flip_image(imgs, lbls)
-            imgs, lbls = crop_image(imgs, lbls)
+            # imgs, lbls = crop_image(imgs, lbls)
             # imgs, lbls = fancy_pca(imgs, lbls)
             imgs = minmax(imgs, -1.0, 1.0)
             train_X, train_Y = make_dataset(imgs, lbls)
@@ -359,10 +359,11 @@ def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 optimizer.minimize(lambda: loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
                 foo += 1
                 step += 1
-        if (epoch+1) % 3 == 0 and lr_temp >= 1e-6:
+        if (epoch+1) % 2 == 0 and lr_temp >= 1e-6:
             lr_temp /= 10;
-            optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
-        #     optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
+            # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+            # optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
+            optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
     # Save the updated parameters(weights, biases)
     #     if (epoch+1) % 10 == 0:
         if (epoch + 1) % 2 == 0:
@@ -370,6 +371,4 @@ def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
 for k in range(5):
     step = 1
-    # augmentation = input('Augmentation을 진행하시겠습니까?(y/n) : ')
-    augmentation = 'n'
-    train(epochs=10, step=step, augmentation=augmentation)
+    train(epochs=20, step=step)

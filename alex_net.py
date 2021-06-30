@@ -122,13 +122,13 @@ def fancy_pca(images, labels, alpha_std=0.1):
     return pca_images, pca_labels
 
 
-def minmax(images):
+def minmax(images, min, max):
     scaled_images = list()
     for img in images:
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         scaled_img = np.array(img).copy()
         for idx in range(3):
-            scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(-1, 1))
+            scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(min, max))
         scaled_images.append(scaled_img)
 
     return scaled_images
@@ -348,7 +348,7 @@ def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
             # imgs, lbls = flip_image(imgs, lbls)
             imgs, lbls = crop_image(imgs, lbls)
             # imgs, lbls = fancy_pca(imgs, lbls)
-            imgs = minmax(imgs)
+            # imgs = minmax(imgs, -1, 1)
             train_X, train_Y = make_dataset(imgs, lbls)
 
             # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
@@ -371,4 +371,4 @@ def train(step, augmentation, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 for k in range(5):
     step = 1
     augmentation = input('Augmentation을 진행하시겠습니까?(y/n) : ')
-    train(epochs=NUM_EPOCHS, step=step, augmentation=augmentation)
+    train(epochs=10, step=step, augmentation=augmentation)

@@ -101,13 +101,25 @@ def fancy_pca(images, labels, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
-            minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
+            # minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
         # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = orig_img
         pca_images.append(pca_img)
         pca_labels.append(lbl)
     # print('End jittering')
     return pca_images, pca_labels
+
+
+def minmax(images, min, max):
+    scaled_images = list()
+    for img in images:
+        # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
+        scaled_img = np.array(img).copy()
+        for idx in range(3):
+            scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(min, max))
+        scaled_images.append(scaled_img)
+
+    return scaled_images
 
 
 # horizontal reflection
@@ -163,7 +175,7 @@ def make_dataset(images, labels):
     # Convert to Tensor
     valid_X, valid_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
 
-    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X).batch(batch_size=BATCH_SIZE), tf.data.Dataset.from_tensor_slices(tensors=valid_Y).batch(batch_size=BATCH_SIZE)
+    valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X).batch(batch_size=BATCH_SIZE), tf.data.Dataset.from_tensor_slices(tensors=valid_Y).batch(batch_size=BATCH_SIZE)
     # print('End making dataset')
     return valid_X, valid_Y
 ########################################################################################################################
@@ -218,8 +230,8 @@ def loss(name, x, y, param):
     logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
     predict = tf.argmax(logits, 1).numpy()
 
-    # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
-    loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(y, depth=NUM_CLASSES), logits=logits)
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
+    # loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(y, depth=NUM_CLASSES), logits=logits)
     loss = tf.reduce_mean(loss)
     target = y
     accuracy = np.sum(predict == target) / len(target)
@@ -250,24 +262,25 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         print('model : {} // {}'.format(model, loaded_param['arr_0']['b8']))
         losses, accs = list(), list()
 
-        # for i in range(int(np.ceil(len(filepaths)/32))):
-        #     # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
-        #     if i == int(np.ceil(len(filepaths) / 32)) - 1:
-        #         fpaths, lbls = filepaths[i * 32:], list(labels[i * 32:])
-        #     # 그 외의 split은 32의 배수로 나누어서 로드
-        #     else:
-        #         fpaths, lbls = filepaths[i * 32:(i + 1) * 32], list(labels[i * 32:(i + 1) * 32])
-        #
-        imgs = resize_images(filepaths)
-        # imgs, lbls = flip_image(imgs, labels)
-        imgs, lbls = crop_image(imgs, labels)
-        imgs, lbls = fancy_pca(imgs, lbls)
-        valid_X, valid_Y = make_dataset(imgs, lbls)
-        #
-        #     for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
-        current_loss, current_acc = loss(name=model, x=valid_X, y=valid_Y, param=loaded_param['arr_0'])
-        losses.append(current_loss)
-        accs.append(current_acc)
+        for i in range(int(np.ceil(len(filepaths)/BATCH_SIZE))):
+            # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
+            if i == int(np.ceil(len(filepaths) / BATCH_SIZE)) - 1:
+                fpaths, lbls = filepaths[i * BATCH_SIZE:], list(labels[i * BATCH_SIZE:])
+            # 그 외의 split은 32의 배수로 나누어서 로드
+            else:
+                fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
+
+            imgs = resize_images(fpaths)
+            # imgs, lbls = flip_image(imgs, labels)
+            imgs, lbls = crop_image(imgs, labels)
+            # imgs, lbls = fancy_pca(imgs, lbls)
+            # imgs = minmax(imgs, -1, 1)
+            valid_X, valid_Y = make_dataset(imgs, lbls)
+
+            for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
+                current_loss, current_acc = loss(name=model, x=batch_X, y=batch_Y, param=loaded_param['arr_0'])
+                losses.append(current_loss)
+                accs.append(current_acc)
 
         # 저장된 최소 loss보다 작으면 best model 업데이트
         if np.mean(losses)-np.mean(accs) < min_loss:

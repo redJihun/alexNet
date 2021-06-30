@@ -75,7 +75,7 @@ def prediction(x, param):
 
     # layer 8
     logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
-    predict = tf.argmax(logits, 1).numpy()
+    predict = tf.argmax(tf.nn.softmax(logits, 1), 1).numpy()
 
     return predict
 
@@ -113,22 +113,23 @@ def minmax(images):
 if __name__ == "__main__":
     camera = cv2.VideoCapture(0);
     classes, param = load_param()
-    f, img = camera.read();
-    pred = test(image=img, loaded_param=param, dirs=classes)
+    # f, img = camera.read();
+    # pred = test(image=img, loaded_param=param, dirs=classes)
     # foo = [1,2,3,4,5]
     # pred = 0
     # bar = 0
 
     while cv2.waitKey(1) != ord('q'):
         f, img = camera.read();
-        new = test(image=img, loaded_param=param, dirs=classes)
+        pred = test(image=img, loaded_param=param, dirs=classes)
         # new = bar
-        if pred != new:
-            cv2.destroyWindow(pred)
+        # if pred != new:
+            # cv2.destroyWindow(pred)
             # cv2.destroyWindow('{}'.format(foo[pred]))
-            pred = new
+            # pred = new
+        cv2.putText(img, pred, (300, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-        cv2.imshow(pred, img);
+        cv2.imshow('Prediction', img);
         # cv2.imshow('{}'.format(foo[pred]), img)
         # bar += 1
 

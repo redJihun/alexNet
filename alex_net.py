@@ -376,6 +376,7 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     #     if (epoch+1) % 10 == 0:
     #     if (epoch + 1) % 2 == 0:
         np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), epoch_best_param)
+        parameters = epoch_best_param.copy()
 
 for k in range(5):
     step = 1

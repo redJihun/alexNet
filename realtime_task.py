@@ -31,7 +31,7 @@ def resize_image(img):
     return image
 
 
-def prediction(x, param):
+def prediction(x, param, threshold=0.4):
     # inputs = tf.constant(x, name='inputs')
     inputs = x
     # layer 1
@@ -77,9 +77,18 @@ def prediction(x, param):
 
     # layer 8
     logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
-    predict = tf.argmax(tf.nn.softmax(logits, 1), 1).numpy()
+    softmax_scores = tf.nn.softmax(logits, 1)
+    unknown = True
+    for s in list(softmax_scores.numpy())[0]:
+        if s > threshold:
+            unknown = False
 
-    return predict
+    if unknown:
+        return 'unknown'
+
+    else:
+        predict = tf.argmax(softmax_scores, 1).numpy()
+        return predict
 
 
 def load_param(ckpts_path=OUTPUT_ROOT_DIR):
@@ -102,7 +111,10 @@ def test(image, loaded_param, dirs):
 
     pred = prediction(tf.cast(tf.reshape(img, [-1, 227, 227, 3]), dtype=tf.float32), loaded_param['arr_0'])
 
-    return dirs[pred[0]]
+    if pred == 'unknown':
+        return 'unknown'
+    else:
+        return dirs[pred[0]]
 
 def minmax(images):
     # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감

@@ -294,8 +294,37 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
             best_model = loaded_param['arr_0'].copy()
 
     # 최종으로 업데이트된 best model을 저장
-    np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
-    print("\nBest model : {}\nloss={}\taccuracy={}\n{}".format(model_name, min_loss, accuracy, best_model['b8']))
+    orig_best = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
+    orig_best = {key: orig_best[key].item() for key in orig_best}
+    orig_losses, orig_accs = list(), list()
+
+    for i in range(int(np.ceil(len(filepaths) / BATCH_SIZE))):
+        # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
+        if i == int(np.ceil(len(filepaths) / BATCH_SIZE)) - 1:
+            fpaths, lbls = filepaths[i * BATCH_SIZE:], list(labels[i * BATCH_SIZE:])
+        # 그 외의 split은 32의 배수로 나누어서 로드
+        else:
+            fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(
+                labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
+
+        imgs = resize_images(fpaths, 227, 227)
+        # imgs, lbls = flip_image(imgs, labels)
+        # imgs, lbls = crop_image(imgs, labels)
+        # imgs, lbls = fancy_pca(imgs, lbls)
+        # imgs = minmax(imgs, -1, 1)
+        valid_X, valid_Y = make_dataset(imgs, lbls)
+
+        for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
+            orig_loss, orig_acc = loss(name='orig_best', x=batch_X, y=batch_Y, param=orig_best['arr_0'])
+            orig_losses.append(orig_loss)
+            orig_accs.append(orig_acc)
+
+    # 저장된 최소 loss보다 작으면 best model 업데이트
+    if np.mean(orig_losses) - np.mean(orig_accs) > min_loss - accuracy:
+        np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
+        print("\nBest model : {}\nloss={}\taccuracy={}\n{}".format(model_name, min_loss, accuracy, best_model['b8']))
+    else:
+        print("\nBest model : orig_best\nloss={}\taccuracy={}\n{}".format(np.mean(orig_losses), np.mean(orig_accs), orig_best['arr_0']['b8']))
 
 
 valid()

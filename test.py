@@ -313,12 +313,12 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
 
     for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
         # minmax(x, 0, 255)
-        print(y,pred)
-        print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
-        cv2.putText(x, dirs[pred], (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 255, 100), 2, cv2.LINE_AA)
-        cv2.imshow('test', np.array(x, dtype=np.uint8))
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # print(y,pred)
+        # print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
+        # cv2.putText(x, dirs[pred], (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 255, 100), 2, cv2.LINE_AA)
+        # cv2.imshow('test', np.array(x, dtype=np.uint8))
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         accs.append(1 if y == pred else 0)
     print('Test accuracy = {}'.format(sum(accs) / len(accs)))
 

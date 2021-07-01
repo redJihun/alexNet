@@ -59,7 +59,7 @@ def load_imagepaths(path):
 
     # 32개 데이터씩 split 하므로 미리 원 데이터를 셔플해준 후에 증강 진행.
     foo = list(zip(imagepaths, labels))
-    random.Random(RANDOM_SEED).shuffle(foo)
+    random.shuffle(foo)
     imagepaths, labels = zip(*foo)
 
     return imagepaths, labels

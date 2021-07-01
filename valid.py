@@ -16,7 +16,7 @@ from sklearn.preprocessing import minmax_scale
 
 RANDOM_SEED = 602
 # random.seed(RANDOM_SEED)
-# tf.random.set_seed(RANDOM_SEED)
+tf.random.set_seed(RANDOM_SEED)
 
 # Hyper-parameters
 NUM_EPOCHS = 90

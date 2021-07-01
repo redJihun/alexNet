@@ -240,7 +240,7 @@ def loss(name, x, y, param):
     target = y
     accuracy = np.sum(predict == target) / len(target)
 
-    print('model\t=\t{}\tloss={}\taccuracy={}'.format(name, loss.numpy(), accuracy))
+    # print('model\t=\t{}\tloss={}\taccuracy={}'.format(name, loss.numpy(), accuracy))
 
     return loss, accuracy
 
@@ -287,6 +287,7 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
                 losses.append(current_loss)
                 accs.append(current_acc)
 
+        print('model: {}\nloss: {}\tacc: {}\n'.format(model, np.mean(losses), np.mean(accs)))
         # 저장된 최소 loss보다 작으면 best model 업데이트
         if np.mean(losses)-np.mean(accs) < min_loss-accuracy:
             min_loss, accuracy = np.mean(losses), np.mean(accs)

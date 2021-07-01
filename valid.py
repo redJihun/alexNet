@@ -287,7 +287,7 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
                 losses.append(current_loss)
                 accs.append(current_acc)
 
-        print('model: {}\nloss: {}\tacc: {}\n'.format(model, np.mean(losses), np.mean(accs)))
+        print('loss: {}\tacc: {}'.format(np.mean(losses), np.mean(accs)))
         # 저장된 최소 loss보다 작으면 best model 업데이트
         if np.mean(losses)-np.mean(accs) < min_loss-accuracy:
             min_loss, accuracy = np.mean(losses), np.mean(accs)

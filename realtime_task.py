@@ -84,7 +84,7 @@ def prediction(x, param, threshold=0.4):
             unknown = False
 
     if unknown:
-        return 'unknown'
+        return 20000
 
     else:
         predict = tf.argmax(softmax_scores, 1).numpy()
@@ -111,7 +111,7 @@ def test(image, loaded_param, dirs):
 
     pred = prediction(tf.cast(tf.reshape(img, [-1, 227, 227, 3]), dtype=tf.float32), loaded_param['arr_0'])
 
-    if pred == 'unknown':
+    if pred == 20000:
         return 'unknown'
     else:
         return dirs[pred[0]]

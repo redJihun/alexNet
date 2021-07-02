@@ -13,6 +13,7 @@ import random
 
 # visualization
 import cv2
+from sklearn.preprocessing import minmax_scale
 
 RANDOM_SEED = 602
 # random.seed(RANDOM_SEED)
@@ -24,15 +25,15 @@ BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
-NUM_CLASSES = 10
-IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
+NUM_CLASSES = 3
+# IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
-INPUT_ROOT_DIR = './input'
-TRAIN_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'train')
-OUTPUT_ROOT_DIR = './output'
+INPUT_ROOT_DIR = './input/task'
+TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
+OUTPUT_ROOT_DIR = './output/task'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tiny_imagenet')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'train')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -46,7 +47,7 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 def load_imagepaths(path):
     imagepaths, labels = list(), list()
     label = 0
-    classes = sorted(os.walk(path).__next__()[1])
+    classes = os.walk(path).__next__()[1]
     for c in classes:
         c_dir = os.path.join(path, c)
         walk = os.walk(c_dir).__next__()
@@ -63,26 +64,44 @@ def load_imagepaths(path):
 # 256x256으로 이미지 다운샘플링
 def resize_images(imgpaths):
     # Read images from disk & resize
-    print('start resizing image')
+    # print('start resizing image')
     images = list()
     for img in imgpaths:
-        img = tf.io.read_file(img)
-        img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize(img, size=(256, 256), method=tf.image.ResizeMethod.LANCZOS5)
-        images.append(img)
-    print('end resizing')
+        try:
+            image = cv2.imread(img)
+            image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+            images.append(image)
+        except:
+            image = tf.io.read_file(img)
+            image = tf.image.decode_jpeg(image, channels=3)
+            image = tf.image.resize_with_crop_or_pad(image, target_height=256, target_width=256)
+            images.append(image)
+    # print('end resizing')
     return images
 
 
+def minmax(images, min, max):
+    scaled_images = list()
+    for img in images:
+        # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
+        scaled_img = np.array(img, dtype=np.float).copy()
+        for idx in range(3):
+            scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(min, max))
+        scaled_images.append(scaled_img)
+
+    return scaled_images
+
+
 # RGB jittering
-def fancy_pca(images, labels, alpha_std=0.1):
-    print('Start Jittering')
+def fancy_pca(images, labels, imgmean, alpha_std=0.1):
+    # print('Start Jittering')
     pca_images,pca_labels = images.copy(),labels.copy()
     for img,lbl in zip(images, labels):
-        orig_img = img.numpy().copy()
+        orig_img = np.array(img, dtype=np.float).copy()
         # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
         img_rs = np.reshape(img, (-1, 3))
-        img_centered = img_rs - IMAGENET_MEAN
+        # img_centered = img_rs - IMAGENET_MEAN
+        img_centered = img_rs - imgmean
         # 해당 이미지의 공분산 행렬 구함
         img_cov = np.cov(img_centered, rowvar=False)
         # 고유벡터, 고유값 구함
@@ -101,80 +120,71 @@ def fancy_pca(images, labels, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
+            # orig_img[..., idx] = minmax_scale(np.array(orig_img[..., idx]), feature_range=(0, 255))
+            # minmax_scale(np.array(orig_img[..., idx], dtype=np.uint16), feature_range=(0, 255), copy=False)
         # 0~255(rgb픽셀값) 범위로 값 재설정
-        pca_img = np.clip(orig_img, 0.0, 255.0)
-        # pca_img = pca_img.astype(np.float)
+        pca_img = orig_img
         pca_images.append(pca_img)
         pca_labels.append(lbl)
-    print('End jittering')
+    # print('End jittering')
     return pca_images, pca_labels
 
 
 # horizontal reflection
 def flip_image(images, labels):
-    print('Start flipping')
+    # print('Start flipping')
     flipped_images,flipped_labels = images.copy(),labels.copy()
     for img,lbl in zip(images,labels):
         flipped_image = tf.image.flip_left_right(img)
         flipped_images.append(flipped_image)
         flipped_labels.append(lbl)
-    print('End flipping')
+    # print('End flipping')
     return flipped_images, flipped_labels
 
 
 # Image cropping
 def crop_image(images, labels):
-    print('Start cropping')
+    # print('Start cropping')
     cropped_images, cropped_labels = list(), list()
     for img,label in zip(images,labels):
         # # left-top
-        cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # # right-top
-        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # center
         cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
         cropped_images.append(cropped_img)
         cropped_labels.append(label)
         # # left-bottom
-        cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
+        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
         # # right-bottom
-        cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
-    print('End cropping')
+        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
+        # cropped_images.append(cropped_img)
+        # cropped_labels.append(label)
+    # print('End cropping')
     return cropped_images, cropped_labels
 
 
 # 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
 def make_dataset(images, labels):
-    print('Start making dataset')
+    # print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
     foo = list(zip(images, labels))
     random.Random(RANDOM_SEED).shuffle(foo)
     images, labels = zip(*foo)
 
-    # Split train/valid/test, total data size = 5,000
-    train_X, train_Y = images[:int(len(images)*0.8)], labels[:int(len(labels)*0.8)]
-    valid_X, valid_Y = images[int(len(images)*0.8):int(len(images)*0.9)], labels[int(len(labels)*0.8):int(len(labels)*0.9)]
-    test_X, test_Y = images[int(len(images)*0.9):], labels[int(len(labels)*0.9):]
-
     # Convert to Tensor
-    train_X, train_Y = tf.convert_to_tensor(train_X, dtype=tf.float32), tf.convert_to_tensor(train_Y, dtype=tf.int32)
-    valid_X, valid_Y = tf.convert_to_tensor(valid_X, dtype=tf.float32), tf.convert_to_tensor(valid_Y, dtype=tf.int32)
-    test_X, test_Y = tf.convert_to_tensor(test_X, dtype=tf.float32), tf.convert_to_tensor(test_Y, dtype=tf.int32)
+    test_X, test_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
+    # test_X, test_Y = tf.expand_dims(test_X, 0), tf.expand_dims(test_Y, 0)
 
-    # Build Tf dataset
-    train_X, train_Y = tf.data.Dataset.from_tensor_slices(tensors=train_X).batch(batch_size=128), tf.data.Dataset.from_tensor_slices(tensors=train_Y).batch(batch_size=128)
-    # valid_X, valid_Y = tf.data.Dataset.from_tensor_slices(tensors=valid_X), tf.data.Dataset.from_tensor_slices(tensors=valid_Y)
-    # test_X, test_Y = tf.data.Dataset.from_tensor_slices(tensors=test_X), tf.data.Dataset.from_tensor_slices(tensors=test_Y)
-    print('End making dataset')
-    return train_X, train_Y, valid_X, valid_Y, test_X, test_Y
+    # print('End making dataset')
+    return test_X, test_Y
 ########################################################################################################################
 
 
@@ -237,34 +247,80 @@ def loss(name, x, y, param):
     return loss, predict
 
 
-def test(imgs_path=TRAIN_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
+def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
+    # cv2.imshow('raw', tf.image.decode_jpeg(tf.io.read_file(filepaths[-1])).numpy() )
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
     images = resize_images(filepaths)
-    images,labels = fancy_pca(images,labels)
-    images,labels = crop_image(images,labels)
-    images,labels = flip_image(images,labels)
-    train_X, train_Y, valid_X, valid_Y, test_X, test_Y = make_dataset(images,labels)
+    # print(images[-1])
+    # print(type(images[-1]))
+
+    # imgmean = list()
+    # imgmean.append(np.mean(images[:][:][:][0]))
+    # imgmean.append(np.mean(images[:][:][:][1]))
+    # imgmean.append(np.mean(images[:][:][:][2]))
+
+    # cv2.imshow('resize', np.array(images[-1]))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    # images, labels = flip_image(images, labels)
+    # print(images[-1])
+    # print(type(images[-1]))
+    # cv2.imshow('flip', np.array(images[-1]))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    images, labels = crop_image(images, labels)
+    # print(images[-1])
+    # print(type(images[-1]))
+    # cv2.imshow('crop', np.array(images[-1]))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    # images, labels = fancy_pca(images, labels, imgmean)
+    # print(images[-1])
+    # print(type(images[-1]))
+    # cv2.imshow('pca', np.array(images[-1]))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    # images = minmax(images, -1., 1.)
+
+    test_X, test_Y = make_dataset(images, labels)
+    # print(images[-1])
+    # print(type(images[-1]))
+    # cv2.imshow('dataset', np.array(test_X[-1]))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     # 클래스명 출력을 위해 디렉토리명 저장
     dirs = list()
-    for dir in os.walk(TRAIN_IMG_DIR).__next__()[1]:
+
+    for dir in os.walk(TEST_IMG_DIR).__next__()[1]:
         dirs.append(dir)
 
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, test set 에서 loss 계산
     loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 't_i_best_model.npz'), allow_pickle=True)
     loaded_param = {key: loaded_param[key].item() for key in loaded_param}
     _, prediction = loss(name='best_model', x=test_X, y=test_Y, param=loaded_param['arr_0'])
+
     test_X, test_Y = tf.data.Dataset.from_tensor_slices(test_X), tf.data.Dataset.from_tensor_slices(test_Y)
     accs = list()
 
     for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
-        print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
-        # cv2.imshow('test', x)
+        # minmax(x, 0, 255)
+        # print(y,pred)
+        # print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
+        # cv2.putText(x, dirs[pred], (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 255, 100), 2, cv2.LINE_AA)
+        # cv2.imshow('test', np.array(x, dtype=np.uint8))
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
         accs.append(1 if y == pred else 0)
-    print('Test accuracy = {}'.format(sum(accs)/len(accs)))
+    print('Test accuracy = {}'.format(sum(accs) / len(accs)))
 
 
 test()

@@ -133,3 +133,5 @@ train/
 .idea/
 input/
 output/
+capture_from_url.py
+chromedriver

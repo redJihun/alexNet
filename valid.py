@@ -255,6 +255,8 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
     for file in walk[2]:
         model_paths.append(os.path.join(ckpts_path, file))
 
+    model_paths.sort()
+
     # Validation step 에서 최소 loss 기록 모델을 best model로 선정
     min_loss = 99999999
     accuracy = 0

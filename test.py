@@ -304,7 +304,7 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
         dirs.append(dir)
 
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, test set 에서 loss 계산
-    loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
+    loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 't_i_best_model.npz'), allow_pickle=True)
     loaded_param = {key: loaded_param[key].item() for key in loaded_param}
     _, prediction = loss(name='best_model', x=test_X, y=test_Y, param=loaded_param['arr_0'])
 

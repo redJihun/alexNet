@@ -19,7 +19,7 @@ RANDOM_SEED = 602
 # tf.random.set_seed(RANDOM_SEED)
 
 # Hyper-parameters
-NUM_EPOCHS = 30
+NUM_EPOCHS = 10
 BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
@@ -381,7 +381,7 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
         np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
         # parameters = epoch_best_param.copy()
         end_time = time.time()
-        print("1epoch 소요 시간: {}분".format(int((end_time-start_time)/60)))
+        print("1epoch 소요 시간: {}분".format(str(int((end_time - start_time) / 60))))
 
 for k in range(5):
     step = 1

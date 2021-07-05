@@ -247,7 +247,10 @@ def loss(name, x, y, param):
 
 
 def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
+
     start_time = time.time()
+    # end_time = time.time()
+    # print("validation 소요 시간: {}분".format(str(int((end_time - start_time) / 60))))
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
 
@@ -283,7 +286,7 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
             # imgs, lbls = flip_image(imgs, labels)
             # imgs, lbls = crop_image(imgs, labels)
             # imgs, lbls = fancy_pca(imgs, lbls)
-            # imgs = minmax(imgs, -1, 1)
+            imgs = minmax(imgs, -1.0, 1.0)
             valid_X, valid_Y = make_dataset(imgs, lbls)
 
             for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
@@ -332,7 +335,7 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         print("\nBest model : orig_best\nloss={}\taccuracy={}\n{}".format(np.mean(orig_losses), np.mean(orig_accs), orig_best['arr_0']['b8']))
 
     end_time = time.time()
-    print("validation 소요 시간: {}분".format(int((end_time-start_time)/60)))
+    print("validation 소요 시간: {}분".format(str(int((end_time - start_time) / 60))))
 
 
 valid()

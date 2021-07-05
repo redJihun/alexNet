@@ -333,6 +333,7 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
     # 정해진 횟수(90번)만큼 training 진행 -> 전체 트레이닝셋을 90번 반복한다는 의미
     for epoch in range(epochs):
+        start_time = time.time()
         print('epoch {}'.format(epoch+1))
         # 몇 번째 batch 수행 중인지 확인 위한 변수
         foo = 1
@@ -379,6 +380,8 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     #     if (epoch + 1) % 2 == 0:
         np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
         # parameters = epoch_best_param.copy()
+        end_time = time.time()
+        print("1epoch 소요 시간: {}분".format((end_time-start_time)/60))
 
 for k in range(5):
     step = 1

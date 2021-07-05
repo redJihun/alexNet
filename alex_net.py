@@ -307,7 +307,9 @@ def init_params():
 
 
 
-def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+    current_ckpt = os.path.join(OUTPUT_ROOT_DIR, str(loop))
+    os.makedirs(current_ckpt, exist_ok=True)
     # 논문 상에서 loss가 진동 시 learning_rate를 10으로 나누어주는 역할
     # 적용 방법의 추가적인 연구가 필요.
     # lr_scheduler = tf.optimizers.schedules.PolynomialDecay(
@@ -360,8 +362,8 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
                 # current_loss = loss(foo, batch_X, batch_Y, parameters, step, epoch+1)
                 optimizer.minimize(lambda :loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
-                if step%500==0:
-                    np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}steps'.format(step)), parameters)
+                if step % 1000 == 0:
+                    np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}steps'.format(step)), parameters)
                 foo += 1
                 step += 1
                 # if min_loss > current_loss:
@@ -375,9 +377,9 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # Save the updated parameters(weights, biases)
     #     if (epoch+1) % 10 == 0:
     #     if (epoch + 1) % 2 == 0:
-        np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
+        np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
         # parameters = epoch_best_param.copy()
 
 for k in range(5):
     step = 1
-    train(epochs=30, step=step)
+    train(epochs=30, step=step, loop=k+1)

@@ -31,7 +31,7 @@ def resize_image(img):
     return image
 
 
-def prediction(x, param, threshold=0.5):
+def prediction(x, param, threshold=0.4):
     # inputs = tf.constant(x, name='inputs')
     inputs = x
     # layer 1

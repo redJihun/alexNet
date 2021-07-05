@@ -363,8 +363,8 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
                 # current_loss = loss(foo, batch_X, batch_Y, parameters, step, epoch+1)
                 optimizer.minimize(lambda :loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
-                if step % 1000 == 0:
-                    np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}steps'.format(step)), parameters)
+                if foo % int(len(filepaths)/2 + 1) == 0:
+                    np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}batch'.format(foo)), parameters)
                 foo += 1
                 step += 1
                 # if min_loss > current_loss:

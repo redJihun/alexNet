@@ -20,6 +20,7 @@ TEST_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'test')
 OUTPUT_ROOT_DIR = './output/task'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
 CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'train')
+THRESHOLD = 0.6
 
 # 256x256으로 이미지 다운샘플링
 def resize_image(img):
@@ -31,7 +32,7 @@ def resize_image(img):
     return image
 
 
-def prediction(x, param, threshold=0.4):
+def prediction(x, param, threshold=THRESHOLD):
     # inputs = tf.constant(x, name='inputs')
     inputs = x
     # layer 1

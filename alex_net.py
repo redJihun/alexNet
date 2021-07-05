@@ -19,11 +19,11 @@ RANDOM_SEED = 602
 # tf.random.set_seed(RANDOM_SEED)
 
 # Hyper-parameters
-NUM_EPOCHS = 90
+NUM_EPOCHS = 30
 BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
-LR_INIT = 0.01
+LR_INIT = 0.001
 NUM_CLASSES = 3
 IMAGENET_MEAN = np.array([50., 50., 50.], dtype=np.float)
 
@@ -319,7 +319,7 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # )
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     # 기존 텐서플로우에는 weight-decay 가 설정 가능한 optimizer 부재, Tensorflow_addons 의 SGDW 메소드 사용
-    lr_temp = LR_INIT / 10
+    lr_temp = LR_INIT
     # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')      # loss: 1.08... acc: 0.33
     # optimizer = tf.optimizers.SGD(momentum=MOMENTUM, learning_rate=0.001, name='optimizer')
     # optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=0.001, name='RMSprop')     #
@@ -371,7 +371,7 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 #     min_loss = current_loss
                     # epoch_best_param = parameters.copy()
         if (epoch+1) % 2 == 0 and lr_temp >= 1e-5:
-            lr_temp /= 10;
+            lr_temp /= 10
             # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
             # optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
             optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
@@ -385,4 +385,4 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
 for k in range(5):
     step = 1
-    train(epochs=30, step=step, loop=k+1)
+    train(epochs=NUM_EPOCHS, step=step, loop=k+1)

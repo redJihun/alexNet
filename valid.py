@@ -247,6 +247,7 @@ def loss(name, x, y, param):
 
 
 def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
+    start_time = time.time()
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
 
@@ -329,6 +330,9 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         print("\nBest model : {}\nloss={}\taccuracy={}\n{}".format(model_name, min_loss, accuracy, best_model['b8']))
     else:
         print("\nBest model : orig_best\nloss={}\taccuracy={}\n{}".format(np.mean(orig_losses), np.mean(orig_accs), orig_best['arr_0']['b8']))
+
+    end_time = time.time()
+    print("validation 소요 시간: {}분".format((end_time-start_time)/60))
 
 
 valid()

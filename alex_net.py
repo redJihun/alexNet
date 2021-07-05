@@ -20,7 +20,7 @@ RANDOM_SEED = 602
 
 # Hyper-parameters
 NUM_EPOCHS = 90
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
@@ -380,4 +380,4 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
 for k in range(5):
     step = 1
-    train(epochs=10, step=step)
+    train(epochs=30, step=step)

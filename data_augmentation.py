@@ -11,7 +11,7 @@ import numpy as np
 import random
 
 RANDOM_SEED = 602
-IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
+IMAGENET_MEAN = np.array([8., 8., 8.], dtype=np.float)
 
 # Data directory
 INPUT_ROOT_DIR = './input/task'
@@ -77,7 +77,7 @@ def fancy_pca(img_paths, alpha_std=0.1):
     print('Jittering...')
     for path in img_paths:
         img = cv2.imread(path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         orig_img = np.array(img, dtype=np.float).copy()
 
         # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)

@@ -358,16 +358,16 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
             for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
                 # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
                 # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
-                current_loss = loss(foo, batch_X, batch_Y, parameters, step, epoch+1)
+                # current_loss = loss(foo, batch_X, batch_Y, parameters, step, epoch+1)
                 optimizer.minimize(lambda :loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
-                if step%200==0:
+                if step%500==0:
                     np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}steps'.format(step)), parameters)
                 foo += 1
                 step += 1
-                if min_loss > current_loss:
-                    min_loss = current_loss
-                    epoch_best_param = parameters.copy()
-        if (epoch+1) % 2 == 0 and lr_temp >= 1e-6:
+                # if min_loss > current_loss:
+                #     min_loss = current_loss
+                    # epoch_best_param = parameters.copy()
+        if (epoch+1) % 2 == 0 and lr_temp >= 1e-5:
             lr_temp /= 10;
             # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
             # optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=lr_temp, name='RMSprop')
@@ -375,8 +375,8 @@ def train(step, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     # Save the updated parameters(weights, biases)
     #     if (epoch+1) % 10 == 0:
     #     if (epoch + 1) % 2 == 0:
-        np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), epoch_best_param)
-        parameters = epoch_best_param.copy()
+        np.savez(os.path.join(CHECKPOINT_DIR, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
+        # parameters = epoch_best_param.copy()
 
 for k in range(5):
     step = 1

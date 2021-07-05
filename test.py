@@ -84,7 +84,7 @@ def minmax(images, min, max):
     scaled_images = list()
     for img in images:
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
-        scaled_img = np.array(img, dtype=np.float).copy()
+        scaled_img = np.array(img).copy()
         for idx in range(3):
             scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(min, max))
         scaled_images.append(scaled_img)
@@ -288,7 +288,7 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
-    # images = minmax(images, -1., 1.)
+    images = minmax(images, -1.0, 1.0)
 
     test_X, test_Y = make_dataset(images, labels)
     # print(images[-1])

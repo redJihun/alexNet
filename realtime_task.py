@@ -116,13 +116,14 @@ def test(image, loaded_param, dirs):
     else:
         return dirs[pred[0]]
 
-def minmax(images):
+def minmax(img, min, max):
     # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
     scaled_img = np.array(img).copy()
     for idx in range(3):
-        scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(-1, 1))
+        scaled_img[..., idx] = minmax_scale(img[..., idx], feature_range=(min, max))
 
     return scaled_img
+
 
 if __name__ == "__main__":
     camera = cv2.VideoCapture(0);
@@ -135,15 +136,15 @@ if __name__ == "__main__":
     count = 0
 
     while cv2.waitKey(1) != ord('q'):
-        f, img = camera.read();
+        f, img = camera.read()
         # new = bar
         # if pred != new:
             # cv2.destroyWindow(pred)
             # cv2.destroyWindow('{}'.format(foo[pred]))
             # pred = new
 
-        if count%10==0:
-            pred = test(image=img, loaded_param=param, dirs=classes)
+        if count % 10 == 0:
+            pred = test(image=minmax(img, -1.0, 1.0), loaded_param=param, dirs=classes)
 
         cv2.putText(img, pred, (300, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
 

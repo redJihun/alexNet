@@ -2,7 +2,7 @@ import glob
 from PIL import Image
 import os.path
 foo = input('경로: ')
-files = glob.glob('/home/hong/PycharmProjects/pythonProject/alexNet/input/images/'+foo+'/*')
+files = glob.glob('/home/hong/PycharmProjects/pythonProject/alexNet/input/task/valid/'+foo+'/*')
 
 for item in files:
     if item.endswith('.jpeg'):
@@ -20,7 +20,7 @@ for item in files:
             # os.remove(item)
             fname = os.path.splitext(item)
             os.rename(item, fname[0] + '.jpeg')
-            os.remove(item)
+            # os.remove(item)
             continue
             # fname = os.path.splitext(item)
             # try:

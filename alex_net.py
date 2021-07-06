@@ -19,7 +19,7 @@ RANDOM_SEED = 602
 # tf.random.set_seed(RANDOM_SEED)
 
 # Hyper-parameters
-NUM_EPOCHS = 10
+NUM_EPOCHS = 20
 BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay

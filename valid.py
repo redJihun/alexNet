@@ -319,7 +319,7 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         # imgs, lbls = flip_image(imgs, labels)
         # imgs, lbls = crop_image(imgs, labels)
         # imgs, lbls = fancy_pca(imgs, lbls)
-        # imgs = minmax(imgs, -1, 1)
+        imgs = minmax(imgs, -1.0, 1.0)
         valid_X, valid_Y = make_dataset(imgs, lbls)
 
         for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):

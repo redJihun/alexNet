@@ -335,7 +335,7 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         print("\nBest model : orig_best\nloss={}\taccuracy={}\n{}".format(np.mean(orig_losses), np.mean(orig_accs), orig_best['arr_0']['b8']))
 
     end_time = time.time()
-    print("validation 소요 시간: {}분".format(str(int((end_time - start_time) / 60))))
+    # print("validation 소요 시간: {}분".format(str(int((end_time - start_time) / 60))))
 
 
 valid()

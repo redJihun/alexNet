@@ -247,6 +247,7 @@ def search_selenium(search_name, search_path, search_limit):
                     image.screenshot("/home/hong/PycharmProjects/pythonProject/alexNet/input/images/" + search_path + name + str(count) + ".png")
                     count += 1
                 except:
+                    browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                     continue
 
             browser.close()
@@ -257,6 +258,6 @@ if __name__ == "__main__":
     search_limit = int(input("원하는 이미지 수집 개수 : "))
     # search_site = input("검색할 사이트 : ")
     # search_path = search_name + "/"
-    search_path = "tumbler/"
+    search_path = input("저장경로: ")+"/"
     # search_maybe(search_name, search_limit, search_path)
     search_selenium(search_name, search_path, search_limit)

@@ -63,11 +63,8 @@ def resize_images(imgpaths):
 def flip_image(fpaths):
     print('Flipping...')
     for path in fpaths:
-        # print(path)
         flipped_image = cv2.imread(path)
-        # flipped_image = cv2.cvtColor(flipped_image, cv2.COLOR_BGR2RGB)
         flipped_image = cv2.flip(flipped_image, 1)
-        # flipped_image = cv2.cvtColor(flipped_image, cv2.COLOR_RGB2BGR)
         cv2.imwrite(path+'_flipped.jpeg', flipped_image)
     print('End flipping.')
 
@@ -77,7 +74,6 @@ def fancy_pca(img_paths, alpha_std=0.1):
     print('Jittering...')
     for path in img_paths:
         img = cv2.imread(path)
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         orig_img = np.array(img, dtype=np.float).copy()
 
         # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
@@ -107,9 +103,7 @@ def fancy_pca(img_paths, alpha_std=0.1):
         # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
         for idx in range(3):
             orig_img[..., idx] += add_vect[idx]
-            # minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
 
-        # 0~255(rgb픽셀값) 범위로 값 재설정
         pca_img = orig_img
         cv2.imwrite(path+'_jitter.jpeg', pca_img)
     print('End jittering')
@@ -121,7 +115,6 @@ def crop_image(paths):
     for path in paths:
         img = cv2.imread(path)
         img = cv2.resize(img, dsize=(256, 256), interpolation=cv2.INTER_AREA)
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         # for x_idx in range(img.shape[0]-227):
         #     for y_idx in range(img.shape[1]-227):
         #         cropped_image = img[x_idx:x_idx+227, y_idx:y_idx+227]
@@ -146,12 +139,12 @@ def crop_image(paths):
     print('End Cropping')
 
 
-# def __main__():
-img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-resize_images(img_paths)
-img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-fancy_pca(img_paths)
-img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-flip_image(img_paths)
-img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-crop_image(img_paths)
+if __name__ == "__main__":
+    img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+    resize_images(img_paths)
+    img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+    fancy_pca(img_paths)
+    img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+    flip_image(img_paths)
+    img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+    crop_image(img_paths)

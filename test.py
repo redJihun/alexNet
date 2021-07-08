@@ -62,21 +62,19 @@ def load_imagepaths(path):
 
 
 # 256x256으로 이미지 다운샘플링
-def resize_images(imgpaths):
+def resize_images(imgpaths, w, h):
     # Read images from disk & resize
-    # print('start resizing image')
     images = list()
     for img in imgpaths:
         try:
             image = cv2.imread(img)
-            image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+            image = cv2.resize(image, dsize=(w, h), interpolation=cv2.INTER_AREA)
             images.append(image)
         except:
             image = tf.io.read_file(img)
             image = tf.image.decode_jpeg(image, channels=3)
-            image = tf.image.resize_with_crop_or_pad(image, target_height=256, target_width=256)
+            image = tf.image.resize_with_crop_or_pad(image, target_height=w, target_width=h)
             images.append(image)
-    # print('end resizing')
     return images
 
 
@@ -92,88 +90,8 @@ def minmax(images, min, max):
     return scaled_images
 
 
-# RGB jittering
-def fancy_pca(images, labels, imgmean, alpha_std=0.1):
-    # print('Start Jittering')
-    pca_images,pca_labels = images.copy(),labels.copy()
-    for img,lbl in zip(images, labels):
-        orig_img = np.array(img, dtype=np.float).copy()
-        # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
-        img_rs = np.reshape(img, (-1, 3))
-        # img_centered = img_rs - IMAGENET_MEAN
-        img_centered = img_rs - imgmean
-        # 해당 이미지의 공분산 행렬 구함
-        img_cov = np.cov(img_centered, rowvar=False)
-        # 고유벡터, 고유값 구함
-        eig_vals, eig_vecs = np.linalg.eigh(img_cov)
-        sort_perm = eig_vals[::-1].argsort()
-        eig_vals[::-1].sort()
-        eig_vecs = eig_vecs[:, sort_perm]
-        # 고유벡터 세개를 쌓아서 3x3 행렬로 만듦
-        m1 = np.column_stack((eig_vecs))
-        m2 = np.zeros((3, 1))
-        # 랜덤값과 고유값을 곱함
-        alpha = np.random.normal(0, alpha_std)
-        m2[:, 0] = alpha * eig_vals
-        # 3x3 고유벡터 행렬과 3x1 랜덤값*고유값 행렬을 곱해서 3x1 행렬을 얻음(RGB 채널에 가감해줄 값)
-        add_vect = np.matrix(m1) * np.matrix(m2)
-        # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
-        for idx in range(3):
-            orig_img[..., idx] += add_vect[idx]
-            # orig_img[..., idx] = minmax_scale(np.array(orig_img[..., idx]), feature_range=(0, 255))
-            # minmax_scale(np.array(orig_img[..., idx], dtype=np.uint16), feature_range=(0, 255), copy=False)
-        # 0~255(rgb픽셀값) 범위로 값 재설정
-        pca_img = orig_img
-        pca_images.append(pca_img)
-        pca_labels.append(lbl)
-    # print('End jittering')
-    return pca_images, pca_labels
-
-
-# horizontal reflection
-def flip_image(images, labels):
-    # print('Start flipping')
-    flipped_images,flipped_labels = images.copy(),labels.copy()
-    for img,lbl in zip(images,labels):
-        flipped_image = tf.image.flip_left_right(img)
-        flipped_images.append(flipped_image)
-        flipped_labels.append(lbl)
-    # print('End flipping')
-    return flipped_images, flipped_labels
-
-
-# Image cropping
-def crop_image(images, labels):
-    # print('Start cropping')
-    cropped_images, cropped_labels = list(), list()
-    for img,label in zip(images,labels):
-        # # left-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
-        # # right-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
-        # center
-        cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
-        # # left-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
-        # # right-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
-    # print('End cropping')
-    return cropped_images, cropped_labels
-
-
 # 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
 def make_dataset(images, labels):
-    # print('Start making dataset')
     # Shuffle with seed can keep the data-label pair. Without shuffle, data have same label in range.
     foo = list(zip(images, labels))
     random.Random(RANDOM_SEED).shuffle(foo)
@@ -181,9 +99,7 @@ def make_dataset(images, labels):
 
     # Convert to Tensor
     test_X, test_Y = tf.convert_to_tensor(images, dtype=tf.float32), tf.convert_to_tensor(labels, dtype=tf.int32)
-    # test_X, test_Y = tf.expand_dims(test_X, 0), tf.expand_dims(test_Y, 0)
 
-    # print('End making dataset')
     return test_X, test_Y
 ########################################################################################################################
 
@@ -250,52 +166,12 @@ def loss(name, x, y, param):
 def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
-    # cv2.imshow('raw', tf.image.decode_jpeg(tf.io.read_file(filepaths[-1])).numpy() )
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
-    images = resize_images(filepaths)
-    # print(images[-1])
-    # print(type(images[-1]))
-
-    # imgmean = list()
-    # imgmean.append(np.mean(images[:][:][:][0]))
-    # imgmean.append(np.mean(images[:][:][:][1]))
-    # imgmean.append(np.mean(images[:][:][:][2]))
-
-    # cv2.imshow('resize', np.array(images[-1]))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
-    # images, labels = flip_image(images, labels)
-    # print(images[-1])
-    # print(type(images[-1]))
-    # cv2.imshow('flip', np.array(images[-1]))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
-    images, labels = crop_image(images, labels)
-    # print(images[-1])
-    # print(type(images[-1]))
-    # cv2.imshow('crop', np.array(images[-1]))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
-    # images, labels = fancy_pca(images, labels, imgmean)
-    # print(images[-1])
-    # print(type(images[-1]))
-    # cv2.imshow('pca', np.array(images[-1]))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    images = resize_images(filepaths, 227, 227)
 
     images = minmax(images, -1.0, 1.0)
 
     test_X, test_Y = make_dataset(images, labels)
-    # print(images[-1])
-    # print(type(images[-1]))
-    # cv2.imshow('dataset', np.array(test_X[-1]))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
     # 클래스명 출력을 위해 디렉토리명 저장
     dirs = list()

@@ -32,7 +32,7 @@ INPUT_ROOT_DIR = './input/task'
 VALID_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'valid')
 OUTPUT_ROOT_DIR = './output/task'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'train')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, '1')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -67,52 +67,12 @@ def load_imagepaths(path):
 # 256x256으로 이미지 다운샘플링
 def resize_images(imgpaths, w, h):
     # Read images from disk & resize
-    # print('start resizing image')
     images = list()
     for img in imgpaths:
         image = cv2.imread(img)
         image = cv2.resize(image, dsize=(w, h), interpolation=cv2.INTER_AREA)
         images.append(image)
-    # print('end resizing')
     return images
-
-
-# RGB jittering
-def fancy_pca(images, labels, alpha_std=0.1):
-    # print('Start Jittering')
-    pca_images,pca_labels = images.copy(),labels.copy()
-    for img,lbl in zip(images, labels):
-        orig_img = np.array(img, dtype=np.float).copy()
-        # 이미지 픽셀값에서 이미지넷 평균 픽셀값을 빼줌(평균 픽셀값은 사전에 정의됨)
-        img_rs = np.reshape(img, (-1, 3))
-        img_centered = img_rs - IMAGENET_MEAN
-        # 해당 이미지의 공분산 행렬 구함
-        img_cov = np.cov(img_centered, rowvar=False)
-        # 고유벡터, 고유값 구함
-        eig_vals, eig_vecs = np.linalg.eigh(img_cov)
-        sort_perm = eig_vals[::-1].argsort()
-        eig_vals[::-1].sort()
-        eig_vecs = eig_vecs[:, sort_perm]
-        # 고유벡터 세개를 쌓아서 3x3 행렬로 만듦
-        m1 = np.column_stack((eig_vecs))
-        m2 = np.zeros((3, 1))
-        # 랜덤값과 고유값을 곱함
-        np.random.seed(RANDOM_SEED)
-        alpha = np.random.normal(0, alpha_std)
-        m2[:, 0] = alpha * eig_vals
-        # 3x3 고유벡터 행렬과 3x1 랜덤값*고유값 행렬을 곱해서 3x1 행렬을 얻음(RGB 채널에 가감해줄 값)
-        add_vect = np.matrix(m1) * np.matrix(m2)
-        # R, G, B 채널을 각각 순회하며 계산된 값을 각 픽셀마다 가감
-        for idx in range(3):
-            orig_img[..., idx] += add_vect[idx]
-            # minmax_scale(orig_img[..., idx], feature_range=(0., 1.), copy=False)
-        # 0~255(rgb픽셀값) 범위로 값 재설정
-        pca_img = orig_img
-
-        pca_images.append(pca_img)
-        pca_labels.append(lbl)
-    # print('End jittering')
-    return pca_images, pca_labels
 
 
 def minmax(images, min, max):
@@ -125,47 +85,6 @@ def minmax(images, min, max):
         scaled_images.append(scaled_img)
 
     return scaled_images
-
-
-# horizontal reflection
-def flip_image(images, labels):
-    # print('Start flipping')
-    flipped_images,flipped_labels = images.copy(),labels.copy()
-    for img,lbl in zip(images,labels):
-        flipped_image = tf.image.flip_left_right(img)
-        flipped_images.append(flipped_image)
-        flipped_labels.append(lbl)
-    # print('End flipping')
-    return flipped_images, flipped_labels
-
-
-# Image cropping
-def crop_image(images, labels):
-    # print('Start cropping')
-    cropped_images, cropped_labels = list(), list()
-    for img,label in zip(images,labels):
-        # # left-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
-        # # right-top
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-227, 0, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
-        # center
-        cropped_img = tf.image.crop_to_bounding_box(img, int((np.shape(img)[0]-227)/2-1), int((np.shape(img)[0]-227)/2-1), 227, 227)
-        cropped_images.append(cropped_img)
-        cropped_labels.append(label)
-        # # left-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, 0, np.shape(img)[0]-227, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
-        # # right-bottom
-        # cropped_img = tf.image.crop_to_bounding_box(img, np.shape(img)[0]-228, np.shape(img)[1]-228, 227, 227)
-        # cropped_images.append(cropped_img)
-        # cropped_labels.append(label)
-    # print('End cropping')
-    return cropped_images, cropped_labels
 
 
 # 증강된 데이터를 입력받아 셔플 후 TF 데이터셋으로 리턴
@@ -247,10 +166,6 @@ def loss(name, x, y, param):
 
 
 def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
-
-    start_time = time.time()
-    # end_time = time.time()
-    # print("validation 소요 시간: {}분".format(str(int((end_time - start_time) / 60))))
     # 사전에 정의한 load_imagepaths 함수의 매개변수로 이미지를 저장한 파일경로의 루트 디렉토리 지정
     filepaths, labels = load_imagepaths(imgs_path)
 
@@ -283,9 +198,6 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
                 fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
 
             imgs = resize_images(fpaths, 227, 227)
-            # imgs, lbls = flip_image(imgs, labels)
-            # imgs, lbls = crop_image(imgs, labels)
-            # imgs, lbls = fancy_pca(imgs, lbls)
             imgs = minmax(imgs, -1.0, 1.0)
             valid_X, valid_Y = make_dataset(imgs, lbls)
 
@@ -307,18 +219,15 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
     orig_losses, orig_accs = list(), list()
 
     for i in range(int(np.ceil(len(filepaths) / BATCH_SIZE))):
-        # 마지막 split은 전체 데이터 개수가 32로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
+        # 마지막 split은 전체 데이터 개수가 BATCH_SIZE로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
         if i == int(np.ceil(len(filepaths) / BATCH_SIZE)) - 1:
             fpaths, lbls = filepaths[i * BATCH_SIZE:], list(labels[i * BATCH_SIZE:])
-        # 그 외의 split은 32의 배수로 나누어서 로드
+        # 그 외의 split은 BATCH_SIZE의 배수로 나누어서 로드
         else:
             fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(
                 labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
 
         imgs = resize_images(fpaths, 227, 227)
-        # imgs, lbls = flip_image(imgs, labels)
-        # imgs, lbls = crop_image(imgs, labels)
-        # imgs, lbls = fancy_pca(imgs, lbls)
         imgs = minmax(imgs, -1.0, 1.0)
         valid_X, valid_Y = make_dataset(imgs, lbls)
 
@@ -333,9 +242,6 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
         print("\nBest model : {}\nloss={}\taccuracy={}\n{}".format(model_name, min_loss, accuracy, best_model['b8']))
     else:
         print("\nBest model : orig_best\nloss={}\taccuracy={}\n{}".format(np.mean(orig_losses), np.mean(orig_accs), orig_best['arr_0']['b8']))
-
-    end_time = time.time()
-    # print("validation 소요 시간: {}분".format(str(int((end_time - start_time) / 60))))
 
 
 valid()

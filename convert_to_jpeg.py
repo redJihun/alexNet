@@ -2,12 +2,15 @@ import glob
 from PIL import Image
 import os.path
 foo = input('경로: ')
-files = glob.glob('/home/hong/PycharmProjects/pythonProject/alexNet/input/task/valid/'+foo+'/*')
+files = glob.glob('/home/hong/PycharmProjects/pythonProject/alexNet/input/images/'+foo+'/*')
 
 for item in files:
+    fname = os.path.splitext(item)
+    os.rename(item, fname[0].replace(' ','_'))
+
+files = glob.glob('/home/hong/PycharmProjects/pythonProject/alexNet/input/images/' + foo + '/*')
+for item in files:
     if item.endswith('.jpeg'):
-        # fname = os.path.splitext(item)
-        # os.rename(item, fname[0].replace(' ',''))
         continue
     else:
         try:

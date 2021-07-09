@@ -69,15 +69,13 @@ def prediction(x, param, threshold=THRESHOLD):
     l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(param['w6'])[0]], name='l6_flattened')
     l6_fc = tf.nn.bias_add(tf.matmul(l6_flattened, param['w6']), param['b6'], name='l6_fc')
     l6_relu = tf.nn.relu(l6_fc, name='l6_relu')
-    l6_dropout = tf.nn.dropout(l6_relu, rate=0.5, name='l6_dropout')
 
     # layer 7
-    l7_fc = tf.nn.bias_add(tf.matmul(l6_dropout, param['w7']), param['b7'], name='l7_fc')
+    l7_fc = tf.nn.bias_add(tf.matmul(l6_relu, param['w7']), param['b7'], name='l7_fc')
     l7_relu = tf.nn.relu(l7_fc, name='l7_relu')
-    l7_dropout = tf.nn.dropout(l7_relu, rate=0.5, name='l7_dropout')
 
     # layer 8
-    logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
+    logits = tf.nn.bias_add(tf.matmul(l7_relu, param['w8']), param['b8'], name='l8_fc')
     softmax_scores = tf.nn.softmax(logits, 1)
     unknown = True
     for s in list(softmax_scores.numpy())[0]:

@@ -1,6 +1,5 @@
 # For files
 import os
-from PIL import Image
 
 # Deep-learning framework
 import cv2
@@ -11,7 +10,7 @@ import numpy as np
 import random
 
 RANDOM_SEED = 602
-IMAGENET_MEAN = np.array([8., 8., 8.], dtype=np.float)
+IMAGENET_MEAN = np.array([50., 50., 50.], dtype=np.float)
 
 # Data directory
 INPUT_ROOT_DIR = './input/task'
@@ -139,12 +138,25 @@ def crop_image(paths):
     print('End Cropping')
 
 
-if __name__ == "__main__":
-    img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-    resize_images(img_paths)
-    img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-    fancy_pca(img_paths)
-    img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-    flip_image(img_paths)
-    img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
-    crop_image(img_paths)
+def rotate_image(paths):
+    print('Rotating...')
+    for path in paths:
+        img = cv2.imread(path)
+
+        rotated_image = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+        cv2.imwrite(path+'_rotated.jpeg', rotated_image)
+    print('End Rotating')
+
+
+# if __name__ == "__main__":
+img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+print(img_paths[0])
+resize_images(img_paths)
+img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+fancy_pca(img_paths)
+img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+flip_image(img_paths)
+img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+crop_image(img_paths)
+img_paths, _ = load_imagepaths(TRAIN_IMG_DIR)
+rotate_image(img_paths)

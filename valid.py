@@ -24,7 +24,7 @@ BATCH_SIZE = 128
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
 LR_INIT = 0.01
-NUM_CLASSES = 10
+NUM_CLASSES = 6
 IMAGENET_MEAN = np.array([104., 117., 124.], dtype=np.float)
 
 # Data directory
@@ -143,15 +143,13 @@ def loss(name, x, y, param):
     l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(param['w6'])[0]], name='l6_flattened')
     l6_fc = tf.nn.bias_add(tf.matmul(l6_flattened, param['w6']), param['b6'], name='l6_fc')
     l6_relu = tf.nn.relu(l6_fc, name='l6_relu')
-    l6_dropout = tf.nn.dropout(l6_relu, rate=0.5, name='l6_dropout')
 
     # layer 7
-    l7_fc = tf.nn.bias_add(tf.matmul(l6_dropout, param['w7']), param['b7'], name='l7_fc')
+    l7_fc = tf.nn.bias_add(tf.matmul(l6_relu, param['w7']), param['b7'], name='l7_fc')
     l7_relu = tf.nn.relu(l7_fc, name='l7_relu')
-    l7_dropout = tf.nn.dropout(l7_relu, rate=0.5, name='l7_dropout')
 
     # layer 8
-    logits = tf.nn.bias_add(tf.matmul(l7_dropout, param['w8']), param['b8'], name='l8_fc')
+    logits = tf.nn.bias_add(tf.matmul(l7_relu, param['w8']), param['b8'], name='l8_fc')
     predict = tf.argmax(logits, 1).numpy()
 
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
@@ -213,35 +211,40 @@ def valid(imgs_path=VALID_IMG_DIR, ckpts_path=CHECKPOINT_DIR):
             model_name = model
             best_model = loaded_param['arr_0'].copy()
 
-    # 최종으로 업데이트된 best model을 저장
-    orig_best = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
-    orig_best = {key: orig_best[key].item() for key in orig_best}
-    orig_losses, orig_accs = list(), list()
+    try:
+        # 최종으로 업데이트된 best model을 저장
+        orig_best = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
+        orig_best = {key: orig_best[key].item() for key in orig_best}
+        orig_losses, orig_accs = list(), list()
 
-    for i in range(int(np.ceil(len(filepaths) / BATCH_SIZE))):
-        # 마지막 split은 전체 데이터 개수가 BATCH_SIZE로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
-        if i == int(np.ceil(len(filepaths) / BATCH_SIZE)) - 1:
-            fpaths, lbls = filepaths[i * BATCH_SIZE:], list(labels[i * BATCH_SIZE:])
-        # 그 외의 split은 BATCH_SIZE의 배수로 나누어서 로드
+        for i in range(int(np.ceil(len(filepaths) / BATCH_SIZE))):
+            # 마지막 split은 전체 데이터 개수가 BATCH_SIZE로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
+            if i == int(np.ceil(len(filepaths) / BATCH_SIZE)) - 1:
+                fpaths, lbls = filepaths[i * BATCH_SIZE:], list(labels[i * BATCH_SIZE:])
+            # 그 외의 split은 BATCH_SIZE의 배수로 나누어서 로드
+            else:
+                fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(
+                    labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
+
+            imgs = resize_images(fpaths, 227, 227)
+            imgs = minmax(imgs, -1.0, 1.0)
+            valid_X, valid_Y = make_dataset(imgs, lbls)
+
+            for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
+                orig_loss, orig_acc = loss(name='orig_best', x=batch_X, y=batch_Y, param=orig_best['arr_0'])
+                orig_losses.append(orig_loss)
+                orig_accs.append(orig_acc)
+
+        # 저장된 최소 loss보다 작으면 best model 업데이트
+        if np.mean(orig_losses) - np.mean(orig_accs) > min_loss - accuracy:
+            np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
+            print("\nBest model : {}\nloss={}\taccuracy={}\n{}".format(model_name, min_loss, accuracy, best_model['b8']))
         else:
-            fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(
-                labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
+            print("\nBest model : orig_best\nloss={}\taccuracy={}\n{}".format(np.mean(orig_losses), np.mean(orig_accs), orig_best['arr_0']['b8']))
 
-        imgs = resize_images(fpaths, 227, 227)
-        imgs = minmax(imgs, -1.0, 1.0)
-        valid_X, valid_Y = make_dataset(imgs, lbls)
-
-        for batch_X, batch_Y in zip(list(valid_X.as_numpy_iterator()), list(valid_Y.as_numpy_iterator())):
-            orig_loss, orig_acc = loss(name='orig_best', x=batch_X, y=batch_Y, param=orig_best['arr_0'])
-            orig_losses.append(orig_loss)
-            orig_accs.append(orig_acc)
-
-    # 저장된 최소 loss보다 작으면 best model 업데이트
-    if np.mean(orig_losses) - np.mean(orig_accs) > min_loss - accuracy:
+    except:
         np.savez(os.path.join(OUTPUT_ROOT_DIR, 'best_model'), best_model)
         print("\nBest model : {}\nloss={}\taccuracy={}\n{}".format(model_name, min_loss, accuracy, best_model['b8']))
-    else:
-        print("\nBest model : orig_best\nloss={}\taccuracy={}\n{}".format(np.mean(orig_losses), np.mean(orig_accs), orig_best['arr_0']['b8']))
 
 
 valid()

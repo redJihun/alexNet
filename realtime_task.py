@@ -77,6 +77,7 @@ def prediction(x, param, threshold=THRESHOLD):
     # layer 8
     logits = tf.nn.bias_add(tf.matmul(l7_relu, param['w8']), param['b8'], name='l8_fc')
     softmax_scores = tf.nn.softmax(logits, 1)
+    print(softmax_scores)
     unknown = True
     for s in list(softmax_scores.numpy())[0]:
         if s > threshold:

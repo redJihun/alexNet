@@ -16,10 +16,10 @@ RANDOM_SEED = 602
 
 # Hyper-parameters
 NUM_EPOCHS = 30
-BATCH_SIZE = 128
+BATCH_SIZE = 512
 MOMENTUM = 0.9
 LR_DECAY = 0.0005         # == weight_decay
-LR_INIT = 0.001
+LR_INIT = 0.01
 NUM_CLASSES = 6
 IMAGENET_MEAN = np.array([50., 50., 50.], dtype=np.float)
 
@@ -206,6 +206,7 @@ def init_params():
 
 
 def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+    strategy = tf.distribute.MirroredStrategy()
     current_ckpt = os.path.join(OUTPUT_ROOT_DIR, str(loop))
     os.makedirs(current_ckpt, exist_ok=True)
 
@@ -223,43 +224,45 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     filepaths, labels = load_imagepaths(imgs_path)
 
     # 정해진 횟수(NUM_EPOCHS)만큼 training 진행 -> 전체 트레이닝셋을 NUM_EPOCHS 만큼 반복한다는 의미
-    for epoch in range(epochs):
-        print('epoch {}'.format(epoch+1))
-        # 몇 번째 batch 수행 중인지 확인 위한 변수
-        foo = 1
-        # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
-        for i in range(int(np.ceil(len(filepaths)/BATCH_SIZE))):
-            # 마지막 split은 전체 데이터 개수가 BATCH_SIZE로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
-            if i == int(np.ceil(len(filepaths) / BATCH_SIZE)) - 1:
-                fpaths, lbls = filepaths[i * BATCH_SIZE:], list(labels[i * BATCH_SIZE:])
-            # 그 외의 split은 BATCH_SIZE의 배수로 나누어서 로드
-            else:
-                fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
-
-            imgs = resize_images(fpaths)
-            imgs = minmax(imgs, -1.0, 1.0)
-            train_X, train_Y = make_dataset(imgs, lbls)
-
+    with strategy.scope():
+        for epoch in range(epochs):
+            print('epoch {}'.format(epoch+1))
+            # 몇 번째 batch 수행 중인지 확인 위한 변수
+            foo = 1
             # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
-            for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
-                # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
-                # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
-                # current_loss = loss(foo, batch_X, batch_Y, parameters, step, epoch+1)
-                optimizer.minimize(lambda :loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
-                if foo % int(np.ceil(len(filepaths)/BATCH_SIZE)/2 + 1) == 0:
-                    np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}batch'.format(foo)), parameters)
-                foo += 1
-                step += 1
-                # if min_loss > current_loss:
-                #     min_loss = current_loss
-                    # epoch_best_param = parameters.copy()
-        if (epoch+1) % 2 == 0 and lr_temp >= 1e-5:
-            lr_temp /= 10
-            optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
 
-        # Save the updated parameters(weights, biases)
-        np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
-        # parameters = epoch_best_param.copy()
+            for i in range(int(np.ceil(len(filepaths)/BATCH_SIZE))):
+                # 마지막 split은 전체 데이터 개수가 BATCH_SIZE로 안 나누어 떨어지는 경우 남은 개수만큼만 로드
+                if i == int(np.ceil(len(filepaths) / BATCH_SIZE)) - 1:
+                    fpaths, lbls = filepaths[i * BATCH_SIZE:], list(labels[i * BATCH_SIZE:])
+                # 그 외의 split은 BATCH_SIZE의 배수로 나누어서 로드
+                else:
+                    fpaths, lbls = filepaths[i * BATCH_SIZE:(i + 1) * BATCH_SIZE], list(labels[i * BATCH_SIZE:(i + 1) * BATCH_SIZE])
+
+                imgs = resize_images(fpaths)
+                imgs = minmax(imgs, -1.0, 1.0)
+                train_X, train_Y = make_dataset(imgs, lbls)
+
+                # batch_size(128)로 나뉘어진 데이터에서 트레이닝 수행, e.g., 2000개의 데이터 / 128 = 15.625 -> 16개의 batch
+                for batch_X, batch_Y in zip(list(train_X.as_numpy_iterator()), list(train_Y.as_numpy_iterator())):
+                    # loss 함수의 정의에 따라 feed-forward 과정 수행, minimize 메소드로 back-prop 수행 & 가중치 업데이트
+                    # 현재 가중치를 직접 관리하는 중, 따라서 직접 초기화 수행 후 매개변수로 가중치 딕셔너리를 넣어줌
+                    # current_loss = loss(foo, batch_X, batch_Y, parameters, step, epoch+1)
+                    optimizer.minimize(lambda :loss(foo, batch_X, batch_Y, parameters, step, epoch+1), var_list=parameters)
+                    if foo % int(np.ceil(len(filepaths)/BATCH_SIZE)/2 + 1) == 0:
+                        np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}batch'.format(foo)), parameters)
+                    foo += 1
+                    step += 1
+                    # if min_loss > current_loss:
+                    #     min_loss = current_loss
+                        # epoch_best_param = parameters.copy()
+            if lr_temp >= 1e-6:
+                lr_temp -= lr_temp/NUM_EPOCHS
+                optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
+
+            # Save the updated parameters(weights, biases)
+            np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)
+            # parameters = epoch_best_param.copy()
 
 
 for k in range(5):

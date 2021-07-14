@@ -206,7 +206,9 @@ def init_params():
 
 
 def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
+    # GPU 자원 사용 위한 코드
     strategy = tf.distribute.MirroredStrategy()
+
     current_ckpt = os.path.join(OUTPUT_ROOT_DIR, str(loop))
     os.makedirs(current_ckpt, exist_ok=True)
 
@@ -224,6 +226,7 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
     filepaths, labels = load_imagepaths(imgs_path)
 
     # 정해진 횟수(NUM_EPOCHS)만큼 training 진행 -> 전체 트레이닝셋을 NUM_EPOCHS 만큼 반복한다는 의미
+    # with strategy => 해당 블록 안의 연산을 GPU 리소스 사용해 처리한다는 의미
     with strategy.scope():
         for epoch in range(epochs):
             print('epoch {}'.format(epoch+1))

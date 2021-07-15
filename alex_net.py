@@ -262,7 +262,7 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 #     min_loss = current_loss
                     # epoch_best_param = parameters.copy()
         if lr_temp >= 1e-6:
-            lr_temp = 0.5 * LR_INIT * (1 + np.cos((lr_temp * np.pi) / NUM_EPOCHS))
+            lr_temp = 0.5 * LR_INIT * (1 + np.cos(((epoch + 1) * np.pi) / NUM_EPOCHS))
             optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
             # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
 

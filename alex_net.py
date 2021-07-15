@@ -218,10 +218,10 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
 
     # 만들어준 모델에서 back-prop 과 가중치 업데이트를 수행하기 위해 optimizer 메소드를 사용
     lr_temp = LR_INIT
-    optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+    # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
     # optimizer = tf.optimizers.SGD(momentum=MOMENTUM, learning_rate=0.001, name='optimizer')
     # optimizer = tf.optimizers.RMSprop(momentum=MOMENTUM, learning_rate=0.001, name='RMSprop')
-    # optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
+    optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
 
     # 파라미터(=가중치) 들을 직접 관리해야 하므로 논문 조건에 따라 초기화
     parameters = init_params()
@@ -262,9 +262,9 @@ def train(step, loop, imgs_path=TRAIN_IMG_DIR, epochs=NUM_EPOCHS):
                 #     min_loss = current_loss
                     # epoch_best_param = parameters.copy()
         if lr_temp >= 1e-6:
-            lr_temp -= LR_INIT/NUM_EPOCHS
-            # optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
-            optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
+            lr_temp = 0.5 * LR_INIT * (1 + np.cos((lr_temp * np.pi) / NUM_EPOCHS))
+            optimizer = tf.optimizers.Adam(learning_rate=lr_temp)
+            # optimizer = tfa.optimizers.SGDW(momentum=MOMENTUM, learning_rate=lr_temp, weight_decay=LR_DECAY, name='optimizer')
 
         # Save the updated parameters(weights, biases)
         np.savez(os.path.join(current_ckpt, time.strftime('%y%m%d_%H%M', time.localtime()) + '_{}epoch'.format(epoch+1)), parameters)

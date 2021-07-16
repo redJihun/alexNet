@@ -112,41 +112,41 @@ def loss(name, x, y, param):
     # layer 1
     l1_convolve = tf.nn.conv2d(input=inputs, filters=param['w1'], strides=4, padding='VALID', name='l1_convolve')
     l1_bias = tf.reshape(tf.nn.bias_add(l1_convolve, param['b1']), tf.shape(l1_convolve), name='l1_bias')
-    l1_relu = tf.nn.relu6(l1_bias, name='l1_relu')
+    l1_relu = tf.nn.relu(l1_bias, name='l1_relu')
     l1_norm = tf.nn.lrn(input=l1_relu, depth_radius=5, alpha=10e-4, beta=0.75, bias=2.0, name='l1_norm')
     l1_pool = tf.nn.max_pool(input=l1_norm, ksize=3, strides=2, padding='VALID', name='l1_pool')
 
     # layer 2
     l2_convolve = tf.nn.conv2d(input=l1_pool, filters=param['w2'], strides=1, padding='SAME', name='l2_convolve')
     l2_bias = tf.reshape(tf.nn.bias_add(l2_convolve, param['b2']), tf.shape(l2_convolve), name='l2_bias')
-    l2_relu = tf.nn.relu6(l2_bias, name='l2_relu')
+    l2_relu = tf.nn.relu(l2_bias, name='l2_relu')
     l2_norm = tf.nn.lrn(input=l2_relu, depth_radius=5, alpha=10e-4, beta=0.75, bias=2.0, name='l2_norm')
     l2_pool = tf.nn.max_pool(input=l2_norm, ksize=3, strides=2, padding='VALID', name='l2_pool')
 
     # layer 3
     l3_convolve = tf.nn.conv2d(input=l2_pool, filters=param['w3'], strides=1, padding='SAME', name='l3_convolve')
     l3_bias = tf.reshape(tf.nn.bias_add(l3_convolve, param['b3']), tf.shape(l3_convolve), name='l3_bias')
-    l3_relu = tf.nn.relu6(l3_bias, name='l3_relu')
+    l3_relu = tf.nn.relu(l3_bias, name='l3_relu')
 
     # layer 4
     l4_convolve = tf.nn.conv2d(input=l3_relu, filters=param['w4'], strides=1, padding='SAME', name='l4_convolve')
     l4_bias = tf.reshape(tf.nn.bias_add(l4_convolve, param['b4']), tf.shape(l4_convolve), name='l4_bias')
-    l4_relu = tf.nn.relu6(l4_bias, name='l4_relu')
+    l4_relu = tf.nn.relu(l4_bias, name='l4_relu')
 
     # layer 5
     l5_convolve = tf.nn.conv2d(input=l4_relu, filters=param['w5'], strides=1, padding='SAME', name='l5_convolve')
     l5_bias = tf.reshape(tf.nn.bias_add(l5_convolve, param['b5']), tf.shape(l5_convolve), name='l5_bias')
-    l5_relu = tf.nn.relu6(l5_bias, name='l5_relu')
+    l5_relu = tf.nn.relu(l5_bias, name='l5_relu')
     l5_pool = tf.nn.max_pool(input=l5_relu, ksize=3, strides=2, padding='VALID', name='l5_pool')
 
     # layer 6
     l6_flattened = tf.reshape(l5_pool, [-1, tf.shape(param['w6'])[0]], name='l6_flattened')
     l6_fc = tf.nn.bias_add(tf.matmul(l6_flattened, param['w6']), param['b6'], name='l6_fc')
-    l6_relu = tf.nn.relu6(l6_fc, name='l6_relu')
+    l6_relu = tf.nn.relu(l6_fc, name='l6_relu')
 
     # layer 7
     l7_fc = tf.nn.bias_add(tf.matmul(l6_relu, param['w7']), param['b7'], name='l7_fc')
-    l7_relu = tf.nn.relu6(l7_fc, name='l7_relu')
+    l7_relu = tf.nn.relu(l7_fc, name='l7_relu')
 
     # layer 8
     logits = tf.nn.bias_add(tf.matmul(l7_relu, param['w8']), param['b8'], name='l8_fc')

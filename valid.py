@@ -32,7 +32,7 @@ INPUT_ROOT_DIR = './input/task'
 VALID_IMG_DIR = os.path.join(INPUT_ROOT_DIR, 'valid')
 OUTPUT_ROOT_DIR = './output/task'
 LOG_DIR = os.path.join(OUTPUT_ROOT_DIR, 'tblogs')
-CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, '1')
+CHECKPOINT_DIR = os.path.join(OUTPUT_ROOT_DIR, 'temp')
 
 # Make checkpoint path directory
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)

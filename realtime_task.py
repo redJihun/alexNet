@@ -32,7 +32,7 @@ def resize_image(img):
     return image
 
 
-def prediction(x, param, threshold=THRESHOLD):
+def prediction(x, param):
     # inputs = tf.constant(x, name='inputs')
     inputs = x
 
@@ -77,10 +77,16 @@ def prediction(x, param, threshold=THRESHOLD):
 
     # layer 8
     logits = tf.nn.bias_add(tf.matmul(l7_relu, param['w8']), param['b8'], name='l8_fc')
-    softmax_scores = tf.nn.softmax(logits, 1)
-    print(softmax_scores)
+    softmax_score = tf.nn.softmax(logits, 1)
+
+    return softmax_score
+
+
+def predict(softmax_scores, threshold=THRESHOLD):
+    softmax_score = np.mean(softmax_scores, axis=0)
+
     unknown = True
-    for s in list(softmax_scores.numpy())[0]:
+    for s in softmax_score[0]:
         if s > threshold:
             unknown = False
 
@@ -88,7 +94,7 @@ def prediction(x, param, threshold=THRESHOLD):
         return 20000
 
     else:
-        predict = tf.argmax(softmax_scores, 1).numpy()
+        predict = tf.argmax(softmax_score, 1).numpy()
         return predict
 
 
@@ -101,16 +107,29 @@ def load_param(ckpts_path=OUTPUT_ROOT_DIR):
         dirs.append(dir)
 
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, test set 에서 loss 계산
-    loaded_param = np.load(os.path.join(ckpts_path, 'best_model.npz'), allow_pickle=True)
-    loaded_param = {key: loaded_param[key].item() for key in loaded_param}
+    models = list()
+    for item in os.walk(ckpts_path).__next__()[2]:
+        if item.endswith('.npz'):
+            models.append(item)
 
-    return dirs, loaded_param
+    loaded_params = list()
+    for model in models:
+        loaded_param = np.load(os.path.join(ckpts_path, model), allow_pickle=True)
+        loaded_param = {key: loaded_param[key].item() for key in loaded_param}
+        loaded_params.append(loaded_param)
+
+    return dirs, loaded_params
 
 
-def test(image, loaded_param, dirs):
+def test(image, loaded_params, dirs):
     img = resize_image(image)
 
-    pred = prediction(tf.cast(tf.reshape(img, [-1, 227, 227, 3]), dtype=tf.float32), loaded_param['arr_0'])
+    scores = list()
+    for param in loaded_params:
+        score = prediction(tf.cast(tf.reshape(img, [-1, 227, 227, 3]), dtype=tf.float32), param['arr_0'])
+        scores.append(score)
+
+    pred = predict(scores)
 
     if pred == 20000:
         return 'unknown'
@@ -128,7 +147,7 @@ def minmax(img, min, max):
 
 if __name__ == "__main__":
     camera = cv2.VideoCapture(0);
-    classes, param = load_param()
+    classes, params = load_param()
     # f, img = camera.read();
     # pred = test(image=img, loaded_param=param, dirs=classes)
     # foo = [1,2,3,4,5]
@@ -145,7 +164,7 @@ if __name__ == "__main__":
             # pred = new
 
         if count % 10 == 0:
-            pred = test(image=minmax(img, -1.0, 1.0), loaded_param=param, dirs=classes)
+            pred = test(minmax(img, -1.0, 1.0), params, classes)
 
         cv2.putText(img, pred, (300, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
 

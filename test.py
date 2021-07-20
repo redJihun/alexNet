@@ -158,8 +158,8 @@ def softmax_score(name, x, y, param):
     return loss, softmax_scores
 
 
-def predict(softmax_score, y):
-    prediction = tf.argmax(softmax_score, 1).numpy()
+def predict(softmax_scores, y):
+    prediction = tf.argmax(np.mean(softmax_scores, axis=0), 1).numpy()
     accuracy = np.sum(prediction == y) / len(y)
 
     return prediction, accuracy
@@ -196,8 +196,6 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
         sftmaxs.append(sms)
 
     loss_mean = np.mean(losses)
-    sftmax_maen = np.mean(sftmaxs, axis=0)
-    print(np.shape(sftmax_maen))
 
     # _, test_Y = tf.data.Dataset.from_tensor_slices(test_X), tf.data.Dataset.from_tensor_slices(test_Y)
     # accs = list()
@@ -212,7 +210,7 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
         # cv2.destroyAllWindows()
         # accs.append(1 if y == pred else 0)
 
-    pred, acc = predict(sftmax_maen, test_Y)
+    pred, acc = predict(sftmaxs, test_Y)
     print('Test loss = {}\taccuracy = {}'.format(loss_mean, acc))
 
 

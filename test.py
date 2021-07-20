@@ -105,7 +105,7 @@ def make_dataset(images, labels):
 
 
 # @tf.function
-def loss(name, x, y, param):
+def softmax_score(name, x, y, param):
     # inputs = tf.constant(x, name='inputs')
     inputs = x
 
@@ -150,16 +150,19 @@ def loss(name, x, y, param):
 
     # layer 8
     logits = tf.nn.bias_add(tf.matmul(l7_relu, param['w8']), param['b8'], name='l8_fc')
-    predict = tf.argmax(logits, 1).numpy()
+    softmax_scores = tf.nn.softmax(logits, 1)
 
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
     loss = tf.reduce_mean(loss)
-    target = y
-    accuracy = np.sum(predict == target) / len(target)
 
-    print('model\t=\t{}\tloss={}\taccuracy={}'.format(name, loss.numpy(), accuracy))
+    return loss, softmax_scores
 
-    return loss, predict
+
+def predict(softmax_score, y):
+    prediction = tf.argmax(softmax_score, 1).numpy()
+    accuracy = np.sum(prediction == y) / len(y)
+
+    return prediction, accuracy
 
 
 def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
@@ -179,14 +182,27 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
         dirs.append(dir)
 
     # 저장된 trained 모델(=trained parameters) 들을 불러온 후, test set 에서 loss 계산
-    loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, 'best_model.npz'), allow_pickle=True)
-    loaded_param = {key: loaded_param[key].item() for key in loaded_param}
-    _, prediction = loss(name='best_model', x=test_X, y=test_Y, param=loaded_param['arr_0'])
+    models = list()
+    for item in os.walk(OUTPUT_ROOT_DIR).__next__()[2]:
+        if item.endswith('.npz'):
+            models.append(item)
 
-    test_X, test_Y = tf.data.Dataset.from_tensor_slices(test_X), tf.data.Dataset.from_tensor_slices(test_Y)
-    accs = list()
+    losses, sftmaxs = list(), list()
+    for model in models:
+        loaded_param = np.load(os.path.join(OUTPUT_ROOT_DIR, model), allow_pickle=True)
+        loaded_param = {key: loaded_param[key].item() for key in loaded_param}
+        loss, sms = softmax_score(name=os.path.splitext(model)[0], x=test_X, y=test_Y, param=loaded_param['arr_0'])
+        losses.append(loss)
+        sftmaxs.append(sms)
 
-    for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
+    loss_mean = np.mean(losses)
+    sftmax_maen = np.mean(sftmaxs, axis=0)
+    print(np.shape(sftmax_maen))
+
+    # _, test_Y = tf.data.Dataset.from_tensor_slices(test_X), tf.data.Dataset.from_tensor_slices(test_Y)
+    # accs = list()
+
+    # for x, y, pred in zip(list(test_X.as_numpy_iterator()), list(test_Y.as_numpy_iterator()), prediction):
         # minmax(x, 0, 255)
         # print(y,pred)
         # print('Target = {}\t Predict = {}\n'.format(dirs[y], dirs[pred]))
@@ -194,8 +210,10 @@ def test(imgs_path=TEST_IMG_DIR, ckpts_path=OUTPUT_ROOT_DIR):
         # cv2.imshow('test', np.array(x, dtype=np.uint8))
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
-        accs.append(1 if y == pred else 0)
-    print('Test accuracy = {}'.format(sum(accs) / len(accs)))
+        # accs.append(1 if y == pred else 0)
+
+    pred, acc = predict(sftmax_maen, test_Y)
+    print('Test loss = {}\taccuracy = {}'.format(loss_mean, acc))
 
 
 test()
